@@ -73,6 +73,7 @@ export default function Home() {
 
   // ---- Modali ----
   const [showLogin, setShowLogin] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegistrazione, setIsRegistrazione] = useState(false);
@@ -1086,9 +1087,50 @@ export default function Home() {
                 <span>Piano: Free (BYOK)</span>
               </div>
             )}
-              <button onClick={() => { setShowLogin(false); router.push('/landing'); }} className="text-sm text-violetSoft hover:text-white transition">
-              {session ? session.user?.email?.split('@')[0] : 'Accedi'}
-            </button>
+                            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!session) {
+                    setShowLogin(true);
+                    return;
+                  }
+                  setShowAccountMenu((v) => !v);
+                }}
+                className="text-sm text-violetSoft hover:text-white transition"
+              >
+                {session ? session.user?.email?.split('@')[0] : 'Accedi'}
+              </button>
+              {session && showAccountMenu && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-white/10 bg-surfaceElevated shadow-xl p-3 z-50">
+                  <p className="text-xs text-coolGray truncate mb-2">{session.user?.email}</p>
+                  <p className="text-xs text-textMain mb-3">
+                    Crediti: {profilo?.crediti ?? 0}
+                  </p>
+                  <button
+                    type="button"
+                    className="w-full text-left text-sm py-1.5 hover:text-violetSoft"
+                    onClick={() => { setSezione('progetti'); setShowAccountMenu(false); }}
+                  >
+                    I miei progetti
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full text-left text-sm py-1.5 hover:text-violetSoft"
+                    onClick={() => { setSezione('casa'); setShowAccountMenu(false); }}
+                  >
+                    Console
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full text-left text-sm py-1.5 text-roseSoft hover:text-white mt-1"
+                    onClick={() => { setShowAccountMenu(false); void handleLogout(); }}
+                  >
+                    Esci
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
