@@ -115,6 +115,13 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  // Logged-in users: default console model to Fal (free/premium path)
+  useEffect(() => {
+    if (!session) return;
+    const FAL = ['hunyuan-video', 'hunyuan-video-pro', 'minimax-video', 'cogvideo'];
+    setModello((prev) => (FAL.includes(prev) ? prev : 'hunyuan-video'));
+  }, [session?.user?.id]);
+
   // Onboarding: mostra solo al primo login (flag localStorage.jumbai_onboarded = '1')
   useEffect(() => {
     if (!session) {
@@ -137,7 +144,16 @@ export default function Home() {
     setOnboardingStep(0);
   }
 
-  async function caricaProfilo(userId: string) {
+  async function caricaProfilo(userId: string, opts?: { skipClaim?: boolean }) {
+    if (!opts?.skipClaim) {
+      try {
+        await fetch('/api/claim-free-credits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
+      } catch { /* claim best-effort */ }
+    }
     const { data } = await supabase.from('profili').select('*').eq('id', userId).single();
     setProfilo(data);
   }
@@ -225,194 +241,109 @@ export default function Home() {
   }
 
   // ============ GENERAZIONE ============
+  async function claimFreeCredits(userId: string): Promise<number | null> {
+    try {
+      const resp = await fetch('/api/claim-free-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        console.warn('claim-free-credits failed:', data?.error || resp.status);
+        return null;
+      }
+      return typeof data.crediti === 'number' ? data.crediti : null;
+    } catch (e) {
+      console.warn('claim-free-credits network error:', e);
+      return null;
+    }
+  }
+
   async function eseguiFree() {
-    if (!byokKey.trim()) return alert('Inserisci la tua API Key BYOK nella sezione Sviluppatori.');
+    if (!session?.user?.id) return setShowLogin(true);
     if (!prompt.trim()) return alert('Scrivi un prompt.');
 
     const FAL_MODELS = ['hunyuan-video', 'hunyuan-video-pro', 'minimax-video', 'cogvideo'];
-    let veoModel = modello;
-    if (FAL_MODELS.includes(modello)) {
-      alert('Genera Gratis richiede un modello BYOK Veo/Gemini video (es. Veo 3.1). I modelli Fal (Hunyuan/MiniMax/CogVideo) sono solo Premium.');
-      return;
-    }
-    if (modello.startsWith('gemini-')) {
-      veoModel = 'veo-3.1-generate-preview';
-      setMessaggio('Il modello testo Gemini non genera video: uso Veo 3.1 (BYOK).');
-    } else if (modello.startsWith('veo-')) {
-      veoModel = modello;
-    } else {
-      veoModel = 'veo-3.1-generate-preview';
-      setMessaggio('Modello non riconosciuto per BYOK: uso Veo 3.1.');
-    }
+    const costo = durata <= 6 ? 1 : 2;
+    const modelloFal = FAL_MODELS.includes(modello) ? modello : 'hunyuan-video';
 
-    trackGenera('free');
     setInviando(true);
-    const apiKey = byokKey.trim();
-    const promptUsato = prompt.trim();
+    setMessaggio('Preparazione generazione gratuita...');
 
     try {
-      setMessaggio('Avvio generazione Veo BYOK...');
+      // Assegna pool gratis (~3) se eleggibile, poi rileggi profilo
+      await claimFreeCredits(session.user.id);
+      await caricaProfilo(session.user.id, { skipClaim: true });
 
-      let immagine_base64: string | null = null;
-      if (tabInput !== 'testo' && fileImmagine) {
-        immagine_base64 = await file2base64(fileImmagine);
-      }
+      const { data: profiloFresh } = await supabase
+        .from('profili')
+        .select('crediti, credits')
+        .eq('id', session.user.id)
+        .single();
+      const crediti = profiloFresh?.crediti ?? profiloFresh?.credits ?? 0;
 
-      const startResp = await fetch('/api/byok-veo-start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey,
-          prompt: ottimizzaPrompt
-            ? `${promptUsato}. Cinematic, high quality, detailed scene, smooth camera movement, professional lighting.`
-            : promptUsato,
-          model: veoModel,
-          durata_secondi: durata,
-          risoluzione,
-          aspect_ratio: aspectRatio,
-          genera_audio: generaAudio,
-          prompt_negativo: promptNegativo.trim() || undefined,
-          immagine_base64: immagine_base64 || undefined,
-        }),
-      });
-      const startData = await startResp.json();
-      if (!startResp.ok) {
-        throw new Error(startData?.error || `Avvio fallito (${startResp.status})`);
-      }
-      const operationName = startData.operationName as string;
-      if (!operationName) throw new Error('operationName mancante dalla risposta start.');
-
-      // Poll until done or timeout (~12 min)
-      const pollMs = 6000;
-      const maxAttempts = 120;
-      let videoUri: string | null = null;
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        setMessaggio(`Generazione in corso… (tentativo ${attempt}/${maxAttempts})`);
-        await new Promise((r) => setTimeout(r, pollMs));
-
-        const stResp = await fetch('/api/byok-veo-status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey, operationName }),
-        });
-        const stData = await stResp.json();
-        if (!stResp.ok) {
-          throw new Error(stData?.error || `Status fallito (${stResp.status})`);
-        }
-        if (stData.error) {
-          throw new Error(stData.error);
-        }
-        if (stData.done) {
-          videoUri = stData.videoUri || null;
-          if (!videoUri) {
-            throw new Error('Generazione completata ma videoUri assente nella risposta Google.');
-          }
-          break;
-        }
-      }
-      if (!videoUri) {
-        throw new Error('Timeout: la generazione Veo non è terminata entro ~12 minuti.');
-      }
-
-      setMessaggio('Download video in corso…');
-      const dlResp = await fetch('/api/byok-veo-download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, videoUri }),
-      });
-      if (!dlResp.ok) {
-        let errMsg = `Download fallito (${dlResp.status})`;
+      if (crediti < costo) {
+        const msg =
+          'Hai esaurito le generazioni gratuite incluse. Ricarica con un piano Premium (Starter o Pro) per continuare - senza chiavi Google.';
+        setMessaggio(msg);
+        alert(msg);
+        // Offri checkout Premium (non Google billing)
         try {
-          const errJson = await dlResp.json();
-          errMsg = errJson?.error || errMsg;
-        } catch {}
-        throw new Error(errMsg);
+          const vuole = window.confirm('Vuoi aprire il checkout Premium Starter ora?');
+          if (vuole) await avviaCheckout('starter');
+        } catch { /* ignore */ }
+        return;
       }
-      const blob = await dlResp.blob();
-      const objectUrl = URL.createObjectURL(blob);
 
-      // Prefer clear DOWNLOAD to user device
-      try {
-        const a = document.createElement('a');
-        a.href = objectUrl;
-        a.download = `jumbai-byok-${Date.now()}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      } catch {}
+      if (!FAL_MODELS.includes(modello)) {
+        setMessaggio('Genera Gratis usa i crediti JumbAI su Fal (Hunyuan). Modello avanzato BYOK: sezione Sviluppatori.');
+        setModello(modelloFal);
+      }
 
-      const localId = `byok-local-${Date.now()}`;
-      const nowIso = new Date().toISOString();
-      const localVideo: Video = {
-        id: localId,
-        user_id: session?.user?.id || 'local',
-        titolo: promptUsato.substring(0, 60) || 'BYOK Veo',
-        prompt: promptUsato,
-        prompt_negativo: promptNegativo.trim(),
-        seed: seed ? parseInt(seed) : null,
-        modello: veoModel,
-        tipo_input: tabInput,
-        immagine_url: null,
+      trackGenera('free');
+      setMessaggio('Invio richiesta gratuita (crediti JumbAI)...');
+
+      const body: any = {
+        userId: session.user.id,
+        prompt: prompt.trim(),
+        modello: modelloFal,
         durata_secondi: durata,
         risoluzione,
+        aspect_ratio: aspectRatio,
         genera_audio: generaAudio,
         ottimizza_prompt: ottimizzaPrompt,
-        stato: 'completato',
-        url_video: objectUrl,
-        url_anteprima: null,
-        errore: null,
-        creato_il: nowIso,
-        completato_il: nowIso,
+        prompt_negativo: promptNegativo.trim(),
+        tipo_input: tabInput,
       };
-      setVideos((prev) => [localVideo, ...prev]);
-
-      // Persist metadata if logged in (url may be blob — still useful for Progetti list)
-      if (session?.user?.id) {
-        try {
-          const { data: inserted, error: insertErr } = await supabase
-            .from('video_generati')
-            .insert({
-              user_id: session.user.id,
-              prompt: promptUsato,
-              prompt_negativo: promptNegativo.trim(),
-              seed: seed ? parseInt(seed) : null,
-              modello: veoModel,
-              tipo_input: tabInput,
-              durata_secondi: durata,
-              risoluzione,
-              genera_audio: generaAudio,
-              ottimizza_prompt: ottimizzaPrompt,
-              titolo: promptUsato.substring(0, 60),
-              stato: 'completato',
-              url_video: objectUrl,
-              request_id: operationName,
-              completato_il: nowIso,
-            })
-            .select('*')
-            .single();
-          if (insertErr) {
-            console.warn('BYOK insert video_generati:', insertErr);
-          } else if (inserted) {
-            setVideos((prev) => {
-              const withoutLocal = prev.filter((v) => v.id !== localId);
-              return [inserted as Video, ...withoutLocal];
-            });
-          }
-        } catch (dbE) {
-          console.warn('BYOK DB save skipped:', dbE);
-        }
+      if (seed) body.seed = parseInt(seed);
+      if (tabInput !== 'testo' && fileImmagine) {
+        body.immagine_base64 = await file2base64(fileImmagine);
       }
 
-      setMessaggio('Video BYOK pronto — anteprima in galleria e download avviato.');
-      setTimeout(() => setMessaggio(''), 8000);
+      const resp = await fetch('/api/genera-premium', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        setMessaggio(' ' + (data.message || 'Richiesta gratuita presa in carico!'));
+        setPrompt('');
+        setPromptNegativo('');
+        setSeed('');
+        setFileImmagine(null);
+        setImmaginePreview(null);
+        setGeneraAudio(false);
+        await caricaProfilo(session.user.id, { skipClaim: true });
+      } else {
+        alert(' ' + (data.error || 'Errore'));
+      }
     } catch (e: any) {
-      const msg = e?.message || 'richiesta fallita';
-      console.error('BYOK Veo error:', e);
-      setMessaggio('Errore BYOK: ' + msg);
-      alert('Errore BYOK Veo: ' + msg);
-      setTimeout(() => setMessaggio(''), 10000);
+      alert(' Errore: ' + (e?.message || 'sconosciuto'));
     } finally {
       setInviando(false);
+      setTimeout(() => setMessaggio(''), 8000);
     }
   }
 
@@ -720,7 +651,7 @@ export default function Home() {
                   <option value="hunyuan-video-pro">Hunyuan Video Pro </option>
                   <option value="minimax-video">MiniMax Video</option>
                   <option value="cogvideo">CogVideoX</option>
-                  <option value="veo-3.1-generate-preview">Veo 3.1 (BYOK Gratis)</option>
+                  <option value="veo-3.1-generate-preview">Veo 3.1 (BYOK avanzato — Sviluppatori)</option>
                 </>
               ) : (
                 <>
@@ -830,16 +761,22 @@ export default function Home() {
               disabled={inviando}
               className="rounded-xl bg-surface2 border border-white/[0.10] text-textMain font-semibold py-3.5 hover:bg-surface3 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {inviando ? '' : '🆓'} Genera Gratis <span className="text-xs text-coolGray">BYOK</span>
+              {inviando ? '...' : ''} Genera Gratis
+              {session ? (
+                <span className="text-xs text-coolGray">{costoCrediti} cr</span>
+              ) : null}
             </button>
             <button
               onClick={eseguiPremium}
               disabled={inviando}
               className="rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold py-3.5 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {inviando ? '' : ''} Genera Premium <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-md">{costoCrediti} </span>
+              {inviando ? '...' : ''} Genera Premium <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-md">{costoCrediti} cr</span>
             </button>
           </div>
+          <p className="mt-2 text-xs text-coolGray text-center">
+            Genera Gratis usa i crediti JumbAI (pool iniziale ~3). BYOK avanzato: sezione Sviluppatori.
+          </p>
 
           {/* Messaggio */}
           {messaggio && (
@@ -864,11 +801,11 @@ export default function Home() {
             <div className="glass-card rounded-3xl p-8 hover:-translate-y-1 transition relative">
               <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-surface3 text-coolGray px-2.5 py-1 rounded-full">Free</span>
               <h3 className="font-display text-2xl font-bold mb-1">€0<span className="text-sm text-coolGray font-normal">/sempre</span></h3>
-              <p className="text-sm text-coolGray mb-4">BYOK: porta la tua API Key. Zero costi server.</p>
+              <p className="text-sm text-coolGray mb-4">Include ~3 generazioni gratis con crediti JumbAI. BYOK opzionale in Sviluppatori.</p>
               <ul className="text-sm text-coolGray space-y-2 mb-6">
-                <li>Chiave solo in localStorage</li>
-                <li>Genera Gratis (Gemini testo)</li>
-                <li>Non salva in Progetti (solo Premium)</li>
+                <li>~3 video gratis (crediti JumbAI / Fal)</li>
+                <li>Nessuna fatturazione Google richiesta</li>
+                <li>BYOK opzionale in Sviluppatori</li>
               </ul>
               <button
                 type="button"
@@ -1137,7 +1074,8 @@ export default function Home() {
         <div className="mb-8">
           <h2 className="font-display text-3xl lg:text-4xl font-bold tracking-tight"> Sviluppatori — BYOK</h2>
           <p className="text-sm text-coolGray mt-1">
-            Porta la tua chiave (Bring Your Own Key). La chiave resta <strong>solo</strong> nel tuo browser.
+            BYOK è <strong>opzionale e avanzato</strong>: le generazioni gratuite usano i crediti JumbAI (Fal).
+            Se usi una tua chiave, resta <strong>solo</strong> nel tuo browser — non serve abilitare fatturazione Google per usare Genera Gratis.
           </p>
         </div>
 
@@ -1162,10 +1100,10 @@ export default function Home() {
           <div className="rounded-2xl bg-ink border border-white/[0.08] p-5">
             <h3 className="font-display text-base font-semibold mb-2"> Come ottenere una chiave</h3>
             <ol className="text-sm text-coolGray space-y-2 list-decimal list-inside">
-              <li>Vai su <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-violetSoft hover:underline">Google AI Studio</a> e genera una API Key gratuita</li>
-              <li>Oppure usa <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer" className="text-violetSoft hover:underline">HuggingFace Tokens</a></li>
-              <li>Incolla la chiave qui sopra e clicca Salva</li>
-              <li>Usa il pulsante <strong>&quot;Genera Gratis BYOK&quot;</strong> nella Console</li>
+              <li>Per generare gratis: accedi e usa <strong>&quot;Genera Gratis&quot;</strong> in Casa (crediti JumbAI, nessuna chiave Google)</li>
+              <li>BYOK opzionale: genera una API Key su <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-violetSoft hover:underline">Google AI Studio</a> oppure un token <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer" className="text-violetSoft hover:underline">HuggingFace</a></li>
+              <li>Incolla la chiave qui sopra e clicca Salva (resta in localStorage)</li>
+              <li>BYOK non richiede di abilitare la fatturazione Google per usare le generazioni gratuite JumbAI</li>
             </ol>
           </div>
 
@@ -1175,7 +1113,7 @@ export default function Home() {
               <li>La chiave è archiviata SOLO nel localStorage del tuo browser</li>
               <li>Le chiamate partono direttamente dal tuo browser all&apos;API Google</li>
               <li>Nessun proxy intermedio — zero logging lato server</li>
-              <li>Costo server per il gestore: <strong>€0</strong></li>
+              <li>Le generazioni gratuite JumbAI usano i crediti piattaforma (Fal), non la tua chiave</li>
             </ul>
           </div>
         </div>
@@ -1440,7 +1378,7 @@ export default function Home() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-violetSoft">Passo 1 di 3</p>
                 <h3 className="font-display text-2xl font-bold">Generare un video</h3>
                 <p className="text-sm text-coolGray leading-relaxed">
-                  Vai in <strong className="text-textMain">Casa</strong> e usa la Console Generativa: scrivi un prompt (o scegli un template) e premi Genera Gratis (BYOK) oppure Genera Premium.
+                  Vai in <strong className="text-textMain">Casa</strong> e usa la Console Generativa: scrivi un prompt (o scegli un template) e premi Genera Gratis (crediti JumbAI) oppure Genera Premium.
                 </p>
               </div>
             )}
@@ -1449,7 +1387,7 @@ export default function Home() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-violetSoft">Passo 2 di 3</p>
                 <h3 className="font-display text-2xl font-bold">Crediti e piani</h3>
                 <p className="text-sm text-coolGray leading-relaxed">
-                  Il badge in alto mostra i tuoi <strong className="text-textMain">crediti</strong> Premium. I pacchetti Starter (~€6 / 10 video) e Pro (~€15 / 100 video) ricaricano il saldo; Free resta BYOK a €0 lato server.
+                  Il badge in alto mostra i tuoi <strong className="text-textMain">crediti</strong> Premium. I pacchetti Starter (~€6 / 10 video) e Pro (~€15 / 100 video) ricaricano il saldo; i nuovi account ricevono ~3 crediti gratis; BYOK resta opzionale in Sviluppatori.
                 </p>
               </div>
             )}
