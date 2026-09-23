@@ -1,4 +1,4 @@
-﻿import { supabase } from './supabase-client';
+import { supabase } from './supabase-client';
 
 /** OAuth Google con redirect esplicito al sito (Vercel o origin corrente). */
 export async function signInWithGoogle() {

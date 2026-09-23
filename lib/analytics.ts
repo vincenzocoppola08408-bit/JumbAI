@@ -15,7 +15,7 @@ export function track(name: string, data?: Record<string, string | number | bool
   }
 }
 
-export function trackGenera(kind: 'free' | 'premium') {
+export function trackGenera(kind: 'free' | 'premium' | 'byok') {
   track('Genera', { kind });
 }
 

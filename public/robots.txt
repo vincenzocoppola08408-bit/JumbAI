@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://jumbai.vercel.app/sitemap.xml

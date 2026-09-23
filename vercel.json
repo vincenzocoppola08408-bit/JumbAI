@@ -7,5 +7,32 @@
       "memory": 1024,
       "maxDuration": 60
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/dashboard",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/pricing",
+      "destination": "/landing#pricing",
+      "permanent": false
+    },
+    {
+      "source": "/login",
+      "destination": "/?login=1",
+      "permanent": false
+    },
+    {
+      "source": "/signup",
+      "destination": "/?login=1",
+      "permanent": false
+    },
+    {
+      "source": "/app",
+      "destination": "/",
+      "permanent": false
+    }
+  ]
 }

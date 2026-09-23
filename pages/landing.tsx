@@ -77,21 +77,21 @@ export default function LandingPage() {
         <div className="grid md:grid-cols-3 gap-6">
           <article className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 transition shadow-xl">
             <div className="aspect-video bg-ink2 relative overflow-hidden">
-              <img src="https://images.unsplash.com/photo-1518770660439-4636500cff5f?w=600&h=340&fit=crop&q=80" alt="Cyberpunk" className="w-full h-full object-cover" />
+              <img src="https://picsum.photos/seed/jumbai-cyber/600/340" alt="Cyberpunk" className="w-full h-full object-cover" />
               <div className="absolute bottom-3 left-3"><span className="text-xs font-bold px-2 py-0.5 rounded bg-violet/20 text-violetSoft">Hunyuan</span></div>
             </div>
             <div className="p-5"><h3 className="font-display font-bold text-lg">Cyberpunk Night</h3><p className="text-xs text-coolGray">Modello: Hunyuan Video Pro. Durata 8s, 4K, audio incluso.</p></div>
           </article>
           <article className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 transition shadow-xl">
             <div className="aspect-video bg-ink2 relative overflow-hidden">
-              <img src="https://images.unsplash.com/photo-1529626455594-4ff0802cf14e?w=600&h=340&fit=crop&q=80" alt="Fashion" className="w-full h-full object-cover" />
+              <img src="https://picsum.photos/seed/jumbai-fashion/600/340" alt="Fashion" className="w-full h-full object-cover" />
               <div className="absolute bottom-3 left-3"><span className="text-xs font-bold px-2 py-0.5 rounded bg-roseSoft/20 text-roseSoft">Fashion</span></div>
             </div>
             <div className="p-5"><h3 className="font-display font-bold text-lg">Fashion Cinematic</h3><p className="text-xs text-coolGray">Movimento elegante, luce naturale, inquadratura professionale.</p></div>
           </article>
           <article className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 transition shadow-xl">
             <div className="aspect-video bg-ink2 relative overflow-hidden">
-              <img src="https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=600&h=340&fit=crop&q=80" alt="Nature" className="w-full h-full object-cover" />
+              <img src="https://picsum.photos/seed/jumbai-nature/600/340" alt="Nature" className="w-full h-full object-cover" />
               <div className="absolute bottom-3 left-3"><span className="text-xs font-bold px-2 py-0.5 rounded bg-amber/20 text-amber">Nature</span></div>
             </div>
             <div className="p-5"><h3 className="font-display font-bold text-lg">Mountain Sunset</h3><p className="text-xs text-coolGray">Paesaggio esteso, luce dorata, camera panoramica lenta.</p></div>
@@ -126,7 +126,7 @@ export default function LandingPage() {
           <article className="glass-card rounded-3xl p-8 lg:p-10 relative overflow-hidden ring-1 ring-violet/40 shadow-xl shadow-violet/10">
             <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-violet/20 text-violetSoft px-2.5 py-1 rounded-full">Premium</span>
             <h3 className="font-display text-xl font-bold mb-3">Piano Starter</h3>
-            <p className="text-3xl font-display font-bold mb-2">€1,50 <span className="text-lg font-normal text-coolGray">/settimana</span></p>
+            <p className="text-3xl font-display font-bold mb-2">€1,50 <span className="text-lg font-normal text-coolGray"> una tantum</span></p>
             <p className="text-sm text-coolGray mb-6">Equivalente a <strong>€6 una tantum</strong> per 10 crediti. Pagamento tramite Stripe.</p>
             <ul className="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
               <li>10 video generati, 1080p</li>
@@ -144,7 +144,7 @@ export default function LandingPage() {
           </article>
           <article className="glass-card rounded-3xl p-8 lg:p-10 hover:-translate-y-1 transition">
             <h3 className="font-display text-xl font-bold mb-3">Piano Pro</h3>
-            <p className="text-3xl font-display font-bold mb-2">€3,75 <span className="text-lg font-normal text-coolGray">/settimana</span></p>
+            <p className="text-3xl font-display font-bold mb-2">€3,75 <span className="text-lg font-normal text-coolGray"> una tantum</span></p>
             <p className="text-sm text-coolGray mb-6">Equivalente a <strong>€15 una tantum</strong> per 100 crediti.</p>
             <ul className="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
               <li>100 video, fino a 4K</li>
@@ -164,7 +164,6 @@ export default function LandingPage() {
         <div className="flex flex-wrap items-center justify-center gap-6 mt-6 text-xs text-coolGray">
           <span>🔒 Pagamento sicuro Stripe</span>
           <span>💳 Visa · Mastercard · PayPal</span>
-          <span className="font-medium text-textMain">⭐ 4.8/5 su Trustpilot</span>
         </div>
       </section>
 

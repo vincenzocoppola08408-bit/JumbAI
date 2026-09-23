@@ -1,6 +1,6 @@
 // ============================================================
-// /api/webhook-video-pronto — Riceve il video finito da Fal.ai
-// Aggiorna il record DB: stato → "completato" con URL video
+// /api/webhook-video-pronto - Riceve il video finito da Fal.ai
+// Aggiorna il record DB: stato -> "completato" con URL video
 // ============================================================
 import { supabaseAdmin } from '../../lib/supabase-admin';
 
@@ -11,14 +11,25 @@ export default async function handler(req, res) {
 
   try {
     const payload = req.body || {};
-    const requestId = payload.request_id;
+    const requestId = payload.request_id || payload.requestId || null;
     const videoUrl = payload?.payload?.video?.url || payload?.video?.url;
     const imageUrl = payload?.payload?.images?.[0]?.url || payload?.images?.[0]?.url || null;
 
-    // user_data è ciò che abbiamo inviato nella request originale
+    // user_data from Fal payload OR query string (more reliable than Fal echoing user_data)
     const userData = payload?.payload?.user_data || payload?.user_data || {};
-    const userId = userData.userId;
-    const videoId = userData.videoId;
+    const q = req.query || {};
+    const userId = userData.userId || (typeof q.userId === 'string' ? q.userId : null);
+    let videoId = userData.videoId || (typeof q.videoId === 'string' ? q.videoId : null);
+
+    // Fallback: resolve videoId by Fal request_id saved at enqueue time
+    if (!videoId && requestId) {
+      const { data: byReq } = await supabaseAdmin
+        .from('video_generati')
+        .select('id, stato')
+        .eq('request_id', requestId)
+        .maybeSingle();
+      if (byReq?.id) videoId = byReq.id;
+    }
 
     // Se Fal.ai segnala un errore
     if (payload.status === 'ERROR' || payload.status === 'error') {
@@ -38,12 +49,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ status: 'error_received', request_id: requestId });
     }
 
-    // Payload intermedio (status update) — non contiene ancora il video
+    // Payload intermedio (status update) - non contiene ancora il video
     if (!videoUrl && (payload.status === 'IN_QUEUE' || payload.status === 'IN_PROGRESS')) {
       return res.status(200).json({ status: 'ok', received: false, progress: payload.status });
     }
 
-    // Se non abbiamo videoUrl => non è il payload finale, lo ignoriamo
+    // Se non abbiamo videoUrl => non e' il payload finale, lo ignoriamo
     if (!videoUrl) {
       return res.status(200).json({ status: 'ok', received: false, request_id: requestId });
     }
@@ -77,10 +88,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Errore aggiornamento video.' });
       }
 
-      // TODO(ADD-11): Email «video pronto» — nessun provider email già nel progetto
-      // (no Resend/SendGrid/nodemailer/SMTP in package.json). Quando configuri un provider,
-      // invia qui all'email utente (auth) solo su stato completato, con link/titolo video.
-      // Non implementare finché non esiste un provider reale.
+      // TODO(ADD-11): Email video pronto - nessun provider email gia' nel progetto
 
       return res.status(200).json({
         status: 'success',

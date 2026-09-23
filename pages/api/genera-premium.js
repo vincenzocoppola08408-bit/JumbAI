@@ -42,17 +42,17 @@ export default async function handler(req, res) {
     }
 
     // Calcola costo in crediti
-    const costoCredienti = durata_secondi <= 6 ? 1 : 2;
-    if (utente.crediti < costoCredienti) {
+    const costoCrediti = durata_secondi <= 6 ? 1 : 2;
+    if (utente.crediti < costoCrediti) {
       return res.status(403).json({
-        error: `Crediti insufficienti. Servono ${costoCredienti} 🪙, ne hai ${utente.crediti}.`,
+        error: `Crediti insufficienti. Servono \ crediti, ne hai ${utente.crediti}.`,
       });
     }
 
     // 2. Scala crediti (optimistic lock)
     const { error: updateError } = await supabaseAdmin
       .from('profili')
-      .update({ crediti: utente.crediti - costoCredienti })
+      .update({ crediti: utente.crediti - costoCrediti })
       .eq('id', userId)
       .eq('crediti', utente.crediti);
 
@@ -113,6 +113,11 @@ export default async function handler(req, res) {
       aspect_ratio: aspectRatioFinale,
       duration_seconds: durata_secondi,
       ...(genera_audio && { enable_audio: true }),
+      ...(immagine_base64 && {
+        image_url: String(immagine_base64).startsWith('data:')
+          ? String(immagine_base64)
+          : `data:image/png;base64,${immagine_base64}`,
+      }),
       // user_data per il webhook
       user_data: {
         userId: userId,
@@ -123,7 +128,8 @@ export default async function handler(req, res) {
 
     // 5. Webhook URL (DOVE Fal.ai ci risponde)
     const baseUrl = process.env.SITE_BASE_URL || `https://${process.env.VERCEL_URL || 'jumbai.vercel.app'}`;
-    const webhookUrl = `${baseUrl}/api/webhook-video-pronto`;
+    // Pass ids in query: Fal often does not echo custom user_data to the webhook
+    const webhookUrl = `${baseUrl}/api/webhook-video-pronto?videoId=${encodeURIComponent(videoId)}&userId=${encodeURIComponent(userId)}`;
 
     // 6. Determina endpoint Fal.ai in base al modello
     let falEndpoint = 'https://queue.fal.run/fal-ai/hunyuan-video';
@@ -183,7 +189,7 @@ export default async function handler(req, res) {
       status: 'In coda',
       video_id: videoId,
       request_id: requestId,
-      crediti_rimasti: utente.crediti - costoCredienti,
+      crediti_rimasti: utente.crediti - costoCrediti,
       message: '✅ Richiesta presa in carico! Il video apparirà nella galleria tra 30-90 secondi (si aggiorna in tempo reale).',
     });
   } catch (e) {

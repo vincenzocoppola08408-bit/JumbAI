@@ -232,6 +232,15 @@ export default function Home() {
     alert(' Chiave BYOK salvata localmente. Il server non la vede mai.');
   }
 
+  function setTabInputSafe(tab: TabInput) {
+    if (tab !== 'testo') {
+      setMessaggio('Image-to-video: Presto. Per ora usa input Testo (Fal testo-video).');
+      setTimeout(() => setMessaggio(''), 5000);
+      return;
+    }
+    setTabInput(tab);
+  }
+
   // ============ FILE IMMAGINE ============
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -260,6 +269,112 @@ export default function Home() {
     }
   }
 
+
+  async function eseguiByokVeo() {
+    if (!byokKey.trim()) return alert('Inserisci e salva la tua API Key BYOK.');
+    if (!prompt.trim()) return alert('Scrivi un prompt nella sezione Casa prima di generare con BYOK.');
+    if (!session?.user?.id) return setShowLogin(true);
+
+    const apiKey = byokKey.trim();
+    const veoModel = modello.startsWith('veo-') ? modello : 'veo-3.1-generate-preview';
+    trackGenera('byok');
+    setInviando(true);
+    setMessaggio('Avvio Veo BYOK...');
+    try {
+      let immagine_base64: string | null = null;
+      if (tabInput !== 'testo' && fileImmagine) {
+        immagine_base64 = await file2base64(fileImmagine);
+      }
+      const startResp = await fetch('/api/byok-veo-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey,
+          prompt: prompt.trim(),
+          model: veoModel,
+          durata_secondi: durata,
+          risoluzione,
+          aspect_ratio: aspectRatio,
+          genera_audio: generaAudio,
+          prompt_negativo: promptNegativo.trim() || undefined,
+          immagine_base64: immagine_base64 || undefined,
+        }),
+      });
+      const startData = await startResp.json();
+      if (!startResp.ok) throw new Error(startData?.error || `Avvio fallito (${startResp.status})`);
+      const operationName = startData.operationName as string;
+      if (!operationName) throw new Error('operationName mancante');
+
+      let videoUri: string | null = null;
+      for (let attempt = 1; attempt <= 120; attempt++) {
+        setMessaggio(`Veo BYOK in corso… (${attempt}/120)`);
+        await new Promise((r) => setTimeout(r, 6000));
+        const stResp = await fetch('/api/byok-veo-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey, operationName }),
+        });
+        const stData = await stResp.json();
+        if (!stResp.ok) throw new Error(stData?.error || `Status fallito (${stResp.status})`);
+        if (stData.error) throw new Error(stData.error);
+        if (stData.done) {
+          videoUri = stData.videoUri || null;
+          if (!videoUri) throw new Error('videoUri assente');
+          break;
+        }
+      }
+      if (!videoUri) throw new Error('Timeout Veo BYOK (~12 min)');
+
+      setMessaggio('Download video BYOK…');
+      const dlResp = await fetch('/api/byok-veo-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, videoUri }),
+      });
+      if (!dlResp.ok) {
+        const err = await dlResp.json().catch(() => ({}));
+        throw new Error(err?.error || `Download fallito (${dlResp.status})`);
+      }
+      const blob = await dlResp.blob();
+      const localUrl = URL.createObjectURL(blob);
+
+      const { data: inserted, error: insertErr } = await supabase
+        .from('video_generati')
+        .insert({
+          user_id: session.user.id,
+          prompt: prompt.trim(),
+          prompt_negativo: promptNegativo.trim() || '',
+          modello: veoModel,
+          tipo_input: tabInput,
+          durata_secondi: durata,
+          risoluzione,
+          genera_audio: generaAudio,
+          ottimizza_prompt: ottimizzaPrompt,
+          titolo: prompt.trim().substring(0, 60),
+          stato: 'completato',
+          url_video: videoUri,
+          completato_il: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      if (insertErr) console.warn('BYOK insert video_generati:', insertErr);
+
+      setMessaggio('BYOK completato — video in Progetti');
+      await caricaVideo();
+      setSezione('progetti');
+      const a = document.createElement('a');
+      a.href = localUrl;
+      a.download = `jumbai-byok-${inserted?.id || Date.now()}.mp4`;
+      a.click();
+    } catch (e: any) {
+      alert('BYOK: ' + (e?.message || 'errore'));
+      setMessaggio('');
+    } finally {
+      setInviando(false);
+      setTimeout(() => setMessaggio(''), 8000);
+    }
+  }
+
   async function eseguiFree() {
     if (!session?.user?.id) return setShowLogin(true);
     if (!prompt.trim()) return alert('Scrivi un prompt.');
@@ -278,10 +393,10 @@ export default function Home() {
 
       const { data: profiloFresh } = await supabase
         .from('profili')
-        .select('crediti, credits')
+        .select('crediti')
         .eq('id', session.user.id)
         .single();
-      const crediti = profiloFresh?.crediti ?? profiloFresh?.credits ?? 0;
+      const crediti = profiloFresh?.crediti ?? 0;
 
       if (crediti < costo) {
         const msg =
@@ -328,7 +443,7 @@ export default function Home() {
       });
       const data = await resp.json();
       if (resp.ok) {
-        setMessaggio(' ' + (data.message || 'Richiesta gratuita presa in carico!'));
+        setMessaggio(' ' + (data.message || 'Richiesta gratuita presa in carico! Il video e in Progetti.'));
         setPrompt('');
         setPromptNegativo('');
         setSeed('');
@@ -336,6 +451,12 @@ export default function Home() {
         setImmaginePreview(null);
         setGeneraAudio(false);
         await caricaProfilo(session.user.id, { skipClaim: true });
+        await caricaVideo();
+        setSezione('progetti');
+        setFiltroGalleria('tutti');
+        // Soft refresh: realtime may lag; poll briefly
+        setTimeout(() => { void caricaVideo(); }, 2500);
+        setTimeout(() => { void caricaVideo(); }, 8000);
       } else {
         alert(' ' + (data.error || 'Errore'));
       }
@@ -385,8 +506,13 @@ export default function Home() {
         setFileImmagine(null);
         setImmaginePreview(null);
         setGeneraAudio(false);
-        // Aggiorna badge crediti dopo consumo Premium
+        // Aggiorna badge crediti dopo consumo Premium + galleria Progetti
         if (session?.user?.id) await caricaProfilo(session.user.id);
+        await caricaVideo();
+        setSezione('progetti');
+        setFiltroGalleria('tutti');
+        setTimeout(() => { void caricaVideo(); }, 2500);
+        setTimeout(() => { void caricaVideo(); }, 8000);
       } else {
         alert(' ' + (data.error || 'Errore'));
       }
@@ -457,8 +583,8 @@ export default function Home() {
   // Calcola costo crediti in base a durata
   const costoCrediti = durata <= 6 ? 1 : 2;
 
-  // Prefer profili.crediti (schema attuale); fallback credits se assente a runtime
-  const creditiUtente = profilo?.crediti ?? profilo?.credits ?? 0;
+  // Schema reale: solo profili.crediti (colonna 'credits' non esiste -> PostgREST 400)
+  const creditiUtente = profilo?.crediti ?? 0;
 
   // ============ RENDER SIDEBAR ============
   function renderSidebar() {
@@ -558,7 +684,7 @@ export default function Home() {
             ]).map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setTabInput(tab.id)}
+                onClick={() => setTabInputSafe(tab.id)}
                 className={`tab-btn ${tabInput === tab.id ? 'active' : ''}`}
               >
                 {tab.label}
@@ -993,6 +1119,20 @@ export default function Home() {
                   {/* Export formato (ADD-5/ADD-6): MP4 provider, WebM/GIF con estensione scelta */}
                   {video.stato === 'completato' && video.url_video && (
                     <div className="mt-3 space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const q = new URLSearchParams({
+                            url: video.url_video as string,
+                            id: video.id,
+                            prompt: (video.prompt || '').slice(0, 120),
+                          });
+                          window.open(`/editor?${q.toString()}`, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="w-full inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-violet to-roseSoft text-white text-[11px] font-bold py-2.5 shadow-lg shadow-violet/20 hover:shadow-violet/40 transition"
+                      >
+                        Apri in Editor
+                      </button>
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-coolGray">Export formato</p>
                       <div className="grid grid-cols-3 gap-1.5">
                         {(['mp4', 'webm', 'gif'] as const).map((formato) => (
@@ -1046,13 +1186,16 @@ export default function Home() {
                 </div>
               </div>
               <button
-                className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                type="button"
+                disabled
+                title="Integrazione in arrivo"
+                className={`rounded-lg px-4 py-2 text-xs font-semibold transition opacity-70 cursor-not-allowed ${
                   int.connected
                     ? 'bg-emerald/20 text-emerald border border-emerald/30'
-                    : 'bg-surface2 text-coolGray border border-white/[0.10] hover:text-textMain'
+                    : 'bg-surface2 text-coolGray border border-white/[0.10]'
                 }`}
               >
-                {int.connected ? 'Connesso' : 'Connetti'}
+                {int.connected ? 'Connesso' : 'Presto'}
               </button>
             </div>
           ))}
@@ -1094,7 +1237,16 @@ export default function Home() {
                 Salva
               </button>
             </div>
-            <p className="text-xs text-coolGray mt-2">Memorizzata in localStorage. Il server non vede mai questa chiave.</p>
+            <p className="text-xs text-coolGray mt-2">Memorizzata in localStorage. Per Veo la chiave passa solo ephemeral alle API byok-veo-* (mai salvata su DB).</p>
+            <button
+              type="button"
+              disabled={inviando || !byokKey.trim()}
+              onClick={() => void eseguiByokVeo()}
+              className="mt-4 w-full rounded-xl bg-amber/20 border border-amber/40 text-amber font-semibold py-3 hover:bg-amber/30 transition disabled:opacity-50"
+            >
+              {inviando ? 'Generazione BYOK…' : 'Genera con BYOK Veo (opzionale)'}
+            </button>
+            <p className="text-[11px] text-coolGray mt-2">Usa il prompt della sezione Casa. Genera Gratis resta su Fal + crediti JumbAI.</p>
           </div>
 
           <div className="rounded-2xl bg-ink border border-white/[0.08] p-5">
@@ -1111,8 +1263,8 @@ export default function Home() {
             <h3 className="font-display text-base font-semibold mb-2"> Privacy & Sicurezza</h3>
             <ul className="text-sm text-coolGray space-y-2 list-disc list-inside">
               <li>La chiave è archiviata SOLO nel localStorage del tuo browser</li>
-              <li>Le chiamate partono direttamente dal tuo browser all&apos;API Google</li>
-              <li>Nessun proxy intermedio — zero logging lato server</li>
+              <li>Le chiamate Veo passano ephemeral da /api/byok-veo-* (chiave mai salvata su DB)</li>
+              <li>Nessuna persistenza della chiave; solo inoltro ephemeral verso Google</li>
               <li>Le generazioni gratuite JumbAI usano i crediti piattaforma (Fal), non la tua chiave</li>
             </ul>
           </div>
@@ -1226,8 +1378,11 @@ export default function Home() {
         <div className="glass-card rounded-3xl p-10 max-w-md text-center shadow-2xl border-violet/20">
           <h2 className="font-display text-3xl font-bold mb-3">JumbAI Dashboard</h2>
           <p className="text-coolGray mb-6">Autenticati per accedere alla console generativa, ai progetti e al BYOK.</p>
-          <button onClick={() => { void signInWithGoogle().catch((e) => { console.error(e); setShowLogin(true); alert((e as Error)?.message || 'Login Google non disponibile'); }); }} className="rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold px-8 py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition">Accedi con Google</button>
+          <button onClick={() => { void signInWithGoogle().catch((e) => { console.error(e); setShowLogin(true); alert((e as Error)?.message || 'Login Google non disponibile'); }); }} className="rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold px-8 py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition">Continua con Google</button>
+          <button type="button" onClick={() => setShowLogin(true)} className="mt-3 rounded-xl border border-white/15 bg-surface2 text-textMain font-semibold px-8 py-3 hover:bg-white/[0.06] transition">Accedi o registrati con email</button>
+          <a href="/landing" className="block text-sm text-coolGray hover:text-violetSoft transition mt-4">Torna alla landing</a>
         </div>
+        {renderLoginModal()}
       </div>
     );
   }
