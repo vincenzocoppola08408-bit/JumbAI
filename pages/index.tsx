@@ -78,6 +78,8 @@ export default function Home() {
   // ---- Onboarding (ADD-2) ----
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  // ADD-9 gallery Ispirati
+  const [ispiratiItems, setIspiratiItems] = useState<{id:string;titolo:string;prompt:string;gradient:string}[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,6 +106,10 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem('jumbai_byok_key');
     if (saved) setByokKey(saved);
+    fetch('/ispirati/items.json')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => { if (Array.isArray(data)) setIspiratiItems(data); })
+      .catch(() => {});
   }, []);
 
   // Onboarding: mostra solo al primo login (flag localStorage.jumbai_onboarded = '1')
@@ -476,6 +482,25 @@ export default function Home() {
                 </button>
               ))}
             </div>
+            {/* Gallery statica Ispirati (ADD-9) */}
+            {ispiratiItems.length > 0 && (
+              <div className="mt-5">
+                <p className="text-sm font-medium text-coolGray mb-2">Ispirati</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {ispiratiItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setPrompt(item.prompt)}
+                      className={`text-left rounded-xl p-3 border border-white/[0.08] bg-gradient-to-br ${item.gradient} bg-opacity-20 hover:border-violet/40 transition min-h-[72px]`}
+                    >
+                      <span className="text-xs font-semibold text-white drop-shadow">{item.titolo}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Modello */}
@@ -755,12 +780,22 @@ export default function Home() {
                       </div>
                     </div>
                   ) : video.stato === 'completato' && video.url_video ? (
-                    <video
-                      src={video.url_video}
-                      className="w-full h-full object-cover"
-                      controls
-                      preload="metadata"
-                    />
+                    <>
+                      <video
+                        src={video.url_video}
+                        className="w-full h-full object-cover"
+                        controls
+                        preload="metadata"
+                      />
+                      {/* ADD-7: watermark leggero solo Free (ospite / BYOK senza sessione Premium) */}
+                      {!session && (
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                          <span className="text-white/25 text-2xl font-display font-bold tracking-widest select-none rotate-[-18deg]">
+                            JumbAI
+                          </span>
+                        </div>
+                      )}
+                    </>
                   ) : video.stato === 'fallito' ? (
                     <div className="text-center px-4">
                       <span className="text-3xl">❌</span>

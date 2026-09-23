@@ -14,17 +14,20 @@
 - **ADD-3** FAQ accordion con 5 domande/risposte.
 - **ADD-4** chip per template prompt.
 - **ADD-5** download MP4 illimitato dalle card Progetti.
-- **ADD-6** UI «Export formato»: MP4 funziona; WebM/GIF scaricano lo stesso file con estensione scelta e spiegano il limite del provider.
+- **ADD-6** UI export formato: MP4 funziona; WebM/GIF stesso asset + nota limite provider.
+- **ADD-7** watermark leggero "JumbAI" su preview Free (quando non c'è sessione Premium).
 - **ADD-8** aspect ratio 9:16/16:9 solo Premium/Fal.
+- **ADD-9** gallery statica Ispirati (`public/ispirati/items.json` + griglia in Casa).
 - **ADD-10** Vercel Web Analytics + `trackGenera`/`trackCheckout`.
 - **ADD-11** solo TODO in `pages/api/webhook-video-pronto.js`; nessun provider email in `package.json`.
 - **ADD-12** `GET /api/alive`.
 
 ### CANCELLED
-- **ADD-7** watermark: rimosso/cancellato; Free senza watermark.
+- _(nessuno)_
 
 ### BACKLOG
-- **ADD-9** gallery statica «Ispirati»: non implementata.
+- _(vuoto per ADD-1..12)_
+
 
 ## 1. LINK DEL SITO
 

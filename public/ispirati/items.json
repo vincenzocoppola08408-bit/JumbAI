@@ -1,0 +1,50 @@
+[
+  {
+    "id": "1",
+    "titolo": "Gatto sulla città",
+    "prompt": "Un gatto che vola sopra una città al tramonto, nuvole dorate, camera panoramica lenta, atmosfera cinematografica",
+    "gradient": "from-violet to-roseSoft"
+  },
+  {
+    "id": "2",
+    "titolo": "Spiaggia tropicale",
+    "prompt": "Una spiaggia tropicale con onde che si infrangono, palme al vento, luce dorata, camera lenta cinematic",
+    "gradient": "from-cyan-500 to-blue-600"
+  },
+  {
+    "id": "3",
+    "titolo": "Neve alpina",
+    "prompt": "Cime innevate al mattino, fiocchi in primo piano, sole basso, camera drone lenta",
+    "gradient": "from-sky-400 to-indigo-600"
+  },
+  {
+    "id": "4",
+    "titolo": "Neon Tokyo",
+    "prompt": "Strada di Tokyo di notte piena di neon, pioggia, riflessi sull asfalto, tracking shot fluido",
+    "gradient": "from-fuchsia-500 to-purple-700"
+  },
+  {
+    "id": "5",
+    "titolo": "Caffè italiano",
+    "prompt": "Barista che versa un caffè cremoso in slow motion, vapore, luci calde, stile commercial",
+    "gradient": "from-amber-500 to-orange-700"
+  },
+  {
+    "id": "6",
+    "titolo": "Auto sportiva",
+    "prompt": "Supercar rossa su strada costiera al tramonto, motion blur, camera laterale epica",
+    "gradient": "from-red-500 to-rose-700"
+  },
+  {
+    "id": "7",
+    "titolo": "Foresta magica",
+    "prompt": "Bosco con raggi di luce tra gli alberi, particelle fluttuanti, camera dolly avanti",
+    "gradient": "from-emerald-500 to-teal-700"
+  },
+  {
+    "id": "8",
+    "titolo": "Studio fashion",
+    "prompt": "Modella in abito nero su fondo scuro, luci soft, slow motion elegante",
+    "gradient": "from-zinc-400 to-zinc-700"
+  }
+]
