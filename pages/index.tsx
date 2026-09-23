@@ -228,28 +228,191 @@ export default function Home() {
   async function eseguiFree() {
     if (!byokKey.trim()) return alert('Inserisci la tua API Key BYOK nella sezione Sviluppatori.');
     if (!prompt.trim()) return alert('Scrivi un prompt.');
+
+    const FAL_MODELS = ['hunyuan-video', 'hunyuan-video-pro', 'minimax-video', 'cogvideo'];
+    let veoModel = modello;
+    if (FAL_MODELS.includes(modello)) {
+      alert('Genera Gratis richiede un modello BYOK Veo/Gemini video (es. Veo 3.1). I modelli Fal (Hunyuan/MiniMax/CogVideo) sono solo Premium.');
+      return;
+    }
+    if (modello.startsWith('gemini-')) {
+      veoModel = 'veo-3.1-generate-preview';
+      setMessaggio('Il modello testo Gemini non genera video: uso Veo 3.1 (BYOK).');
+    } else if (modello.startsWith('veo-')) {
+      veoModel = modello;
+    } else {
+      veoModel = 'veo-3.1-generate-preview';
+      setMessaggio('Modello non riconosciuto per BYOK: uso Veo 3.1.');
+    }
+
     trackGenera('free');
     setInviando(true);
-    setMessaggio('Invio richiesta BYOK...');
+    const apiKey = byokKey.trim();
+    const promptUsato = prompt.trim();
+
     try {
-      const resp = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + byokKey.trim(),
-        {
+      setMessaggio('Avvio generazione Veo BYOK...');
+
+      let immagine_base64: string | null = null;
+      if (tabInput !== 'testo' && fileImmagine) {
+        immagine_base64 = await file2base64(fileImmagine);
+      }
+
+      const startResp = await fetch('/api/byok-veo-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey,
+          prompt: ottimizzaPrompt
+            ? `${promptUsato}. Cinematic, high quality, detailed scene, smooth camera movement, professional lighting.`
+            : promptUsato,
+          model: veoModel,
+          durata_secondi: durata,
+          risoluzione,
+          aspect_ratio: aspectRatio,
+          genera_audio: generaAudio,
+          prompt_negativo: promptNegativo.trim() || undefined,
+          immagine_base64: immagine_base64 || undefined,
+        }),
+      });
+      const startData = await startResp.json();
+      if (!startResp.ok) {
+        throw new Error(startData?.error || `Avvio fallito (${startResp.status})`);
+      }
+      const operationName = startData.operationName as string;
+      if (!operationName) throw new Error('operationName mancante dalla risposta start.');
+
+      // Poll until done or timeout (~12 min)
+      const pollMs = 6000;
+      const maxAttempts = 120;
+      let videoUri: string | null = null;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        setMessaggio(`Generazione in corso… (tentativo ${attempt}/${maxAttempts})`);
+        await new Promise((r) => setTimeout(r, pollMs));
+
+        const stResp = await fetch('/api/byok-veo-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `Genera descrizione video basandoti su questo prompt: "${prompt}". Parametri: durata ${durata}s, risoluzione ${risoluzione}. ${generaAudio ? 'Includi audio.' : ''} ${ottimizzaPrompt ? 'Ottimizza e arricchisci la scena descritta.' : ''}` }] }],
-          }),
+          body: JSON.stringify({ apiKey, operationName }),
+        });
+        const stData = await stResp.json();
+        if (!stResp.ok) {
+          throw new Error(stData?.error || `Status fallito (${stResp.status})`);
         }
-      );
-      const data = await resp.json();
-      console.log('BYOK response:', data);
-      alert(' Richiesta BYOK completata! Verifica la console per la risposta.');
+        if (stData.error) {
+          throw new Error(stData.error);
+        }
+        if (stData.done) {
+          videoUri = stData.videoUri || null;
+          if (!videoUri) {
+            throw new Error('Generazione completata ma videoUri assente nella risposta Google.');
+          }
+          break;
+        }
+      }
+      if (!videoUri) {
+        throw new Error('Timeout: la generazione Veo non è terminata entro ~12 minuti.');
+      }
+
+      setMessaggio('Download video in corso…');
+      const dlResp = await fetch('/api/byok-veo-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, videoUri }),
+      });
+      if (!dlResp.ok) {
+        let errMsg = `Download fallito (${dlResp.status})`;
+        try {
+          const errJson = await dlResp.json();
+          errMsg = errJson?.error || errMsg;
+        } catch {}
+        throw new Error(errMsg);
+      }
+      const blob = await dlResp.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      // Prefer clear DOWNLOAD to user device
+      try {
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = `jumbai-byok-${Date.now()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch {}
+
+      const localId = `byok-local-${Date.now()}`;
+      const nowIso = new Date().toISOString();
+      const localVideo: Video = {
+        id: localId,
+        user_id: session?.user?.id || 'local',
+        titolo: promptUsato.substring(0, 60) || 'BYOK Veo',
+        prompt: promptUsato,
+        prompt_negativo: promptNegativo.trim(),
+        seed: seed ? parseInt(seed) : null,
+        modello: veoModel,
+        tipo_input: tabInput,
+        immagine_url: null,
+        durata_secondi: durata,
+        risoluzione,
+        genera_audio: generaAudio,
+        ottimizza_prompt: ottimizzaPrompt,
+        stato: 'completato',
+        url_video: objectUrl,
+        url_anteprima: null,
+        errore: null,
+        creato_il: nowIso,
+        completato_il: nowIso,
+      };
+      setVideos((prev) => [localVideo, ...prev]);
+
+      // Persist metadata if logged in (url may be blob — still useful for Progetti list)
+      if (session?.user?.id) {
+        try {
+          const { data: inserted, error: insertErr } = await supabase
+            .from('video_generati')
+            .insert({
+              user_id: session.user.id,
+              prompt: promptUsato,
+              prompt_negativo: promptNegativo.trim(),
+              seed: seed ? parseInt(seed) : null,
+              modello: veoModel,
+              tipo_input: tabInput,
+              durata_secondi: durata,
+              risoluzione,
+              genera_audio: generaAudio,
+              ottimizza_prompt: ottimizzaPrompt,
+              titolo: promptUsato.substring(0, 60),
+              stato: 'completato',
+              url_video: objectUrl,
+              request_id: operationName,
+              completato_il: nowIso,
+            })
+            .select('*')
+            .single();
+          if (insertErr) {
+            console.warn('BYOK insert video_generati:', insertErr);
+          } else if (inserted) {
+            setVideos((prev) => {
+              const withoutLocal = prev.filter((v) => v.id !== localId);
+              return [inserted as Video, ...withoutLocal];
+            });
+          }
+        } catch (dbE) {
+          console.warn('BYOK DB save skipped:', dbE);
+        }
+      }
+
+      setMessaggio('Video BYOK pronto — anteprima in galleria e download avviato.');
+      setTimeout(() => setMessaggio(''), 8000);
     } catch (e: any) {
-      alert(' Errore BYOK: ' + e.message);
+      const msg = e?.message || 'richiesta fallita';
+      console.error('BYOK Veo error:', e);
+      setMessaggio('Errore BYOK: ' + msg);
+      alert('Errore BYOK Veo: ' + msg);
+      setTimeout(() => setMessaggio(''), 10000);
     } finally {
       setInviando(false);
-      setMessaggio('');
     }
   }
 
@@ -557,11 +720,12 @@ export default function Home() {
                   <option value="hunyuan-video-pro">Hunyuan Video Pro </option>
                   <option value="minimax-video">MiniMax Video</option>
                   <option value="cogvideo">CogVideoX</option>
+                  <option value="veo-3.1-generate-preview">Veo 3.1 (BYOK Gratis)</option>
                 </>
               ) : (
                 <>
-                  <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (BYOK)</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (BYOK)</option>
+                  <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (BYOK → Veo)</option>
+                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (BYOK → Veo)</option>
                   <option value="veo-3.1-generate-preview">Veo 3.1 (BYOK)</option>
                 </>
               )}
@@ -1161,9 +1325,11 @@ export default function Home() {
                 <span>Piano: Free (BYOK)</span>
               </div>
             )}
-                            <div className="relative">
+            <div className="relative">
               <button
                 type="button"
+                aria-haspopup="menu"
+                aria-expanded={session ? showAccountMenu : undefined}
                 onClick={() => {
                   if (!session) {
                     setShowLogin(true);
@@ -1171,38 +1337,66 @@ export default function Home() {
                   }
                   setShowAccountMenu((v) => !v);
                 }}
-                className="text-sm text-violetSoft hover:text-white transition"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] pl-1.5 pr-3 py-1 text-sm text-violetSoft hover:text-white hover:border-violet/40 hover:bg-violet/10 transition"
               >
-                {session ? session.user?.email?.split('@')[0] : 'Accedi'}
+                {session ? (
+                  <>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet to-roseSoft text-[11px] font-bold text-white">
+                      {(session.user?.email || "?").charAt(0).toUpperCase()}
+                    </span>
+                    <span className="max-w-[9rem] truncate">{session.user?.email?.split("@")[0]}</span>
+                    <span className={`text-[10px] text-coolGray transition ${showAccountMenu ? "rotate-180" : ""}`}>▾</span>
+                  </>
+                ) : (
+                  <span className="px-1">Accedi</span>
+                )}
               </button>
               {session && showAccountMenu && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-white/10 bg-surfaceElevated shadow-xl p-3 z-50">
-                  <p className="text-xs text-coolGray truncate mb-2">{session.user?.email}</p>
-                  <p className="text-xs text-textMain mb-3">
-                    Crediti: {profilo?.crediti ?? 0}
-                  </p>
+                <>
                   <button
                     type="button"
-                    className="w-full text-left text-sm py-1.5 hover:text-violetSoft"
-                    onClick={() => { setSezione('progetti'); setShowAccountMenu(false); }}
+                    aria-label="Chiudi menu account"
+                    className="fixed inset-0 z-40 cursor-default bg-black/20"
+                    onClick={() => setShowAccountMenu(false)}
+                  />
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border border-white/10 bg-ink/95 p-2 shadow-2xl shadow-black/50 ring-1 ring-violet/20 backdrop-blur-md z-50"
                   >
-                    I miei progetti
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full text-left text-sm py-1.5 hover:text-violetSoft"
-                    onClick={() => { setSezione('casa'); setShowAccountMenu(false); }}
-                  >
-                    Console
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full text-left text-sm py-1.5 text-roseSoft hover:text-white mt-1"
-                    onClick={() => { setShowAccountMenu(false); void handleLogout(); }}
-                  >
-                    Esci
-                  </button>
-                </div>
+                    <div className="rounded-xl bg-white/[0.03] px-3 py-3 mb-1">
+                      <p className="text-[11px] uppercase tracking-wide text-coolGray mb-1">Account</p>
+                      <p className="text-sm text-textMain truncate">{session.user?.email}</p>
+                      <p className="text-xs text-violetSoft mt-1">
+                        Crediti: <strong className="tabular-nums">{profilo?.crediti ?? 0}</strong>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-textMain hover:bg-violet/15 hover:text-violetSoft transition"
+                      onClick={() => { setSezione("progetti"); setShowAccountMenu(false); }}
+                    >
+                      I miei progetti
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-textMain hover:bg-violet/15 hover:text-violetSoft transition"
+                      onClick={() => { setSezione("casa"); setShowAccountMenu(false); }}
+                    >
+                      Console Generativa
+                    </button>
+                    <div className="my-1 h-px bg-white/10" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-roseSoft hover:bg-roseSoft/10 hover:text-white transition"
+                      onClick={() => { setShowAccountMenu(false); void handleLogout(); }}
+                    >
+                      Esci
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>
