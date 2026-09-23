@@ -1,19 +1,36 @@
-import { createClient } from '@supabase/supabase-js';
+// ============================================================
+// /api/genera-premium — Generazione Video Premium
+// Asincrono: scala crediti, invia a Fal.ai con webhook, risponde subito
+// ============================================================
+import { supabaseAdmin } from '../../lib/supabase-admin';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-// POST /api/genera-premium — body: { userId, prompt, model?, aspectRatio?, duration?, resolution? }
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo non consentito' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Metodo non consentito' });
+  }
 
-  const { userId, prompt, model, aspectRatio, duration, resolution } = req.body || {};
+  const {
+    userId,
+    prompt,
+    modello = 'hunyuan-video',
+    durata_secondi = 4,
+    risoluzione = '720p',
+    genera_audio = false,
+    ottimizza_prompt = false,
+    prompt_negativo = '',
+    seed = null,
+    tipo_input = 'testo',
+    immagine_base64 = null,
+  } = req.body || {};
+
+  // Validazione
   if (!userId || !prompt) {
     return res.status(400).json({ error: 'Parametri mancanti (userId, prompt).' });
   }
 
   try {
-    // 1. Verifica esistenza utente e crediti
-    const { data: utente, error: dbError } = await supabase
+    // 1. Verifica utente e crediti
+    const { data: utente, error: dbError } = await supabaseAdmin
       .from('profili')
       .select('crediti')
       .eq('id', userId)
@@ -22,34 +39,99 @@ export default async function handler(req, res) {
     if (dbError || !utente) {
       return res.status(404).json({ error: 'Utente non trovato.' });
     }
-    if (utente.crediti < 1) {
-      return res.status(403).json({ error: 'Crediti insufficienti. Acquista un pacchetto tramite Stripe.' });
+
+    // Calcola costo in crediti
+    const costoCredienti = durata_secondi <= 6 ? 1 : 2;
+    if (utente.crediti < costoCredienti) {
+      return res.status(403).json({
+        error: `Crediti insufficienti. Servono ${costoCredienti} 🪙, ne hai ${utente.crediti}.`,
+      });
     }
 
-    // 2. Scala 1 credito in modo atomico
-    const { error: updateError } = await supabase
+    // 2. Scala crediti (optimistic lock)
+    const { error: updateError } = await supabaseAdmin
       .from('profili')
-      .update({ crediti: utente.crediti - 1 })
+      .update({ crediti: utente.crediti - costoCredienti })
       .eq('id', userId)
-      .eq('crediti', utente.crediti); // optimistic lock
+      .eq('crediti', utente.crediti);
 
     if (updateError) {
       return res.status(500).json({ error: 'Errore aggiornamento crediti.' });
     }
 
-    // 3. Costruisci il payload per Fal.ai (Hunyuan Video)
-    const falBody = {
-      prompt,
-      ...(model && { model }),
-      ...(aspectRatio && { aspect_ratio: aspectRatio }),
-      ...(duration && { duration_seconds: Number(duration) }),
-      ...(resolution && { resolution }),
+    // 3. Crea record "rendering" nel DB (id è generato da Supabase)
+    const { data: nuovoVideo, error: insertError } = await supabaseAdmin
+      .from('video_generati')
+      .insert({
+        user_id: userId,
+        prompt: prompt,
+        prompt_negativo: prompt_negativo,
+        seed: seed || null,
+        modello: modello,
+        tipo_input: tipo_input,
+        durata_secondi: durata_secondi,
+        risoluzione: risoluzione,
+        genera_audio: genera_audio,
+        ottimizza_prompt: ottimizza_prompt,
+        titolo: prompt.substring(0, 60),
+        stato: 'rendering',
+      })
+      .select('id')
+      .single();
+
+    if (insertError || !nuovoVideo) {
+      // Rollback crediti
+      await supabaseAdmin
+        .from('profili')
+        .update({ crediti: utente.crediti })
+        .eq('id', userId);
+      return res.status(500).json({ error: 'Errore creazione record video.' });
+    }
+
+    const videoId = nuovoVideo.id;
+
+    // 4. Costruisci il payload per Fal.ai
+    // Mappa risoluzione a aspect_ratio
+    const aspectRatioMap = {
+      '720p': '16:9',
+      '1080p': '16:9',
+      '4K': '16:9',
     };
 
-    // 4. Chiamata alla REST API di Fal.ai queue con webhook
-    const falWebhookUrl = `${process.env.SITE_BASE_URL || 'https://vercel.app'}/api/webhook-video-pronto`;
+    const falBody = {
+      prompt: ottimizza_prompt
+        ? `${prompt}. Cinematic, high quality, detailed scene, smooth camera movement, professional lighting.`
+        : prompt,
+      ...(prompt_negativo && { negative_prompt: prompt_negativo }),
+      ...(seed !== null && { seed: Number(seed) }),
+      aspect_ratio: aspectRatioMap[risoluzione] || '16:9',
+      duration_seconds: durata_secondi,
+      ...(genera_audio && { enable_audio: true }),
+      // user_data per il webhook
+      user_data: {
+        userId: userId,
+        videoId: videoId,
+        promptUsato: prompt,
+      },
+    };
+
+    // 5. Webhook URL (DOVE Fal.ai ci risponde)
+    const baseUrl = process.env.SITE_BASE_URL || `https://${process.env.VERCEL_URL || 'jumbai.vercel.app'}`;
+    const webhookUrl = `${baseUrl}/api/webhook-video-pronto`;
+
+    // 6. Determina endpoint Fal.ai in base al modello
+    let falEndpoint = 'https://queue.fal.run/fal-ai/hunyuan-video';
+    if (modello === 'hunyuan-video-pro') {
+      falEndpoint = 'https://queue.fal.run/fal-ai/hunyuan-video-pro';
+    } else if (modello === 'minimax-video') {
+      falEndpoint = 'https://queue.fal.run/fal-ai/minimax-video';
+    } else if (modello === 'cogvideo') {
+      falEndpoint = 'https://queue.fal.run/fal-ai/cogvideox';
+    }
+
+    // 7. Invia a Fal.ai
     const falRes = await fetch(
-      `https://queue.fal.run/fal-ai/hunyuan-video?fal_webhook=${encodeURIComponent(falWebhookUrl)}`,
+      `${falEndpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}`,
       {
         method: 'POST',
         headers: {
@@ -61,20 +143,43 @@ export default async function handler(req, res) {
     );
 
     let falData = null;
-    try { falData = await falRes.json(); } catch {}
+    try {
+      falData = await falRes.json();
+    } catch {}
 
     if (!falRes.ok) {
-      console.error('Errore invio Fal.ai:', falRes.status, falData);
+      // Rollback: ripristina credito e segna come fallito
+      await supabaseAdmin
+        .from('profili')
+        .update({ crediti: utente.crediti })
+        .eq('id', userId);
+
+      await supabaseAdmin
+        .from('video_generati')
+        .update({ stato: 'fallito', errore: `Fal.ai error: ${falRes.status}` })
+        .eq('id', videoId);
+
+      console.error('Fal.ai error:', falRes.status, falData);
       return res.status(502).json({ error: 'Impossibile inviare la richiesta a Fal.ai.' });
     }
 
-    // 5. Rispondi immediatamente per evitare timeout host (10-15s)
+    // 8. Salva request_id per tracciamento
+    const requestId = falData?.request_id || null;
+    if (requestId) {
+      await supabaseAdmin
+        .from('video_generati')
+        .update({ request_id: requestId })
+        .eq('id', videoId);
+    }
+
+    // 9. Rispondi SUBITO (lancia e dimentica — anti-timeout)
     return res.status(200).json({
       status: 'In coda',
-      request_id: falData?.request_id || null,
-      message: 'Richiesta presa in carico dai server cloud. Il video apparirà nella tua galleria tra 30-60 secondi.',
+      video_id: videoId,
+      request_id: requestId,
+      crediti_rimasti: utente.crediti - costoCredienti,
+      message: '✅ Richiesta presa in carico! Il video apparirà nella galleria tra 30-90 secondi (si aggiorna in tempo reale).',
     });
-
   } catch (e) {
     console.error('Errore backend premium:', e);
     return res.status(500).json({ error: 'Errore interno nel sottosistema premium.' });
