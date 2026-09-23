@@ -459,7 +459,7 @@ export default function Home() {
             {/* Template prompt chips (ADD-4) */}
             <div className="flex flex-wrap gap-2 mt-3">
               {[
-                { label: 'Citt?', text: 'Un gatto che vola sopra una citt? al tramonto, nuvole dorate, camera panoramica lenta, atmosfera cinematografica' },
+                { label: 'Città', text: 'Un gatto che vola sopra una città al tramonto, nuvole dorate, camera panoramica lenta, atmosfera cinematografica' },
                 { label: 'Natura', text: 'Tramonto dorato sulle Alpi, laghetto alpino che riflette le nuvole, camera panoramica lenta, luce naturale' },
                 { label: 'Moda', text: 'Modella in passerella al rallentatore, abito di seta che ondeggia, luci morbide da studio, inquadratura elegante' },
                 { label: 'Prodotto', text: 'Una sneaker premium su piedistallo di vetro, rotazione lenta a 360 gradi, riflessi metallici, sfondo scuro minimal' },

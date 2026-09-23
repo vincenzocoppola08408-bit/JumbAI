@@ -1,7 +1,7 @@
 ﻿# Proposte di fix — JumbAI
 
 Ogni voce mappa un ID in [PROBLEMI.md](./PROBLEMI.md).  
-**Aggiornamento 2026-09-23:** ADD-1..6, ADD-8, ADD-10 e ADD-12 risultano gi? in codice; ADD-11 ? solo TODO email; ADD-7 ? cancellato/rimosso; ADD-9 resta backlog. Le proposte sotto descrivono il backlog P0/P1/P2, non questi ADD gi? chiusi.
+**Aggiornamento 2026-09-23:** ADD-1..6, ADD-8, ADD-10 e ADD-12 risultano già in codice; ADD-11 è solo TODO email; ADD-7 è cancellato/rimosso; ADD-9 resta backlog. Le proposte sotto descrivono il backlog P0/P1/P2, non questi ADD già chiusi.
 
 Suggerimento ordine: **L1 → L3 → D2 → D3 → D4 → L2/L5 → resto**.
 

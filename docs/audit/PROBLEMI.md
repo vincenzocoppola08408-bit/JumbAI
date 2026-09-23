@@ -6,7 +6,7 @@ Priorità: P0 = blocca conversione/prodotto · P1 = funzionale grave · P2 = UX/
 ---
 
 ## Stato ADD (2026-09-23)
-ADD-1..6, ADD-8, ADD-10, ADD-11 (TODO email) e ADD-12 sono ora presenti nel codice; ADD-7 ? cancellato/rimosso. ADD-9 resta backlog.
+ADD-1..6, ADD-8, ADD-10, ADD-11 (TODO email) e ADD-12 sono ora presenti nel codice; ADD-7 è cancellato/rimosso. ADD-9 resta backlog.
 
 ## Landing (`/landing`)
 

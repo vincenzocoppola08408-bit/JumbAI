@@ -5,7 +5,7 @@ const FAQ_ITEMS = [
   {
     q: 'Quanto costa JumbAI?',
     // crea-checkout.js: starter amount 600 (€6) / 10 crediti; pro amount 1500 (€15) / 100 crediti
-    a: 'Piano Free BYOK a €0 lato server (usi la tua chiave). Premium: pacchetti one-shot Starter ≈ €6 per 10 video e Pro ≈ €15 per 100 video via Stripe (come da crea-checkout). In landing i prezzi sono anche mostrati in equivalente settimanale.',
+    a: 'Free BYOK costa €0 lato server, ma restano eventuali costi del provider sulla tua chiave. Premium: Starter €6 una tantum per 10 video e Pro €15 una tantum per 100 video via Stripe.',
   },
   {
     q: 'Come funziona la generazione video?',

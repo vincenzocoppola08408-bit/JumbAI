@@ -14,7 +14,7 @@
 - **ADD-3** FAQ accordion con 5 domande/risposte.
 - **ADD-4** chip per template prompt.
 - **ADD-5** download MP4 illimitato dalle card Progetti.
-- **ADD-6** UI ?Export formato?: MP4 funziona; WebM/GIF scaricano lo stesso file con estensione scelta e spiegano il limite del provider.
+- **ADD-6** UI «Export formato»: MP4 funziona; WebM/GIF scaricano lo stesso file con estensione scelta e spiegano il limite del provider.
 - **ADD-8** aspect ratio 9:16/16:9 solo Premium/Fal.
 - **ADD-10** Vercel Web Analytics + `trackGenera`/`trackCheckout`.
 - **ADD-11** solo TODO in `pages/api/webhook-video-pronto.js`; nessun provider email in `package.json`.
@@ -24,7 +24,7 @@
 - **ADD-7** watermark: rimosso/cancellato; Free senza watermark.
 
 ### BACKLOG
-- **ADD-9** gallery statica ?Ispirati?: non implementata.
+- **ADD-9** gallery statica «Ispirati»: non implementata.
 
 ## 1. LINK DEL SITO
 
