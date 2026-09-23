@@ -1,20 +1,20 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { signInWithGoogle } from '../lib/auth-google';
 
 const FAQ_ITEMS = [
   {
     q: 'Quanto costa JumbAI?',
-    // crea-checkout.js: starter amount 600 (â‚¬6) / 10 crediti; pro amount 1500 (â‚¬15) / 100 crediti
-    a: 'Free BYOK costa â‚¬0 lato server, ma restano eventuali costi del provider sulla tua chiave. Premium: Starter â‚¬6 una tantum per 10 video e Pro â‚¬15 una tantum per 100 video via Stripe.',
+    // crea-checkout.js: starter amount 600 (€6) / 10 crediti; pro amount 1500 (€15) / 100 crediti
+    a: 'Free BYOK costa €0 lato server, ma restano eventuali costi del provider sulla tua chiave. Premium: Starter €6 una tantum per 10 video e Pro €15 una tantum per 100 video via Stripe.',
   },
   {
     q: 'Come funziona la generazione video?',
     a: 'Free BYOK usa la tua chiave salvata in localStorage direttamente dal browser; il risultato dipende dal provider configurato. Premium: dopo login, /api/genera-premium scala i crediti e invia il job a Fal.ai; lo stato aggiorna i Progetti in tempo reale.',
   },
   {
-    q: 'Di chi Ã¨ la proprietÃ  dei video generati?',
-    // TODO: nessun ToS legale nel repo â€” wording cauto
-    a: 'I video sono contenuti generati a partire dal tuo prompt. Per diritti d\'uso e proprietÃ  intellettuale consulta i Terms del servizio e dei provider (Fal.ai / modelli); non sostituiscono un parere legale.',
+    q: 'Di chi è la proprietà dei video generati?',
+    // TODO: nessun ToS legale nel repo — wording cauto
+    a: 'I video sono contenuti generati a partire dal tuo prompt. Per diritti d\'uso e proprietà intellettuale consulta i Terms del servizio e dei provider (Fal.ai / modelli); non sostituiscono un parere legale.',
   },
   {
     q: 'Posso scaricare i video in MP4?',
@@ -52,7 +52,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 lg:px-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass text-xs font-medium text-violetSoft mb-6 border border-white/[0.08]">
             <span className="w-1.5 h-1.5 rounded-full bg-violet animate-pulse"></span>
-            Piano Free BYOK attivo â€” zero costi server
+            Piano Free BYOK attivo — zero costi server
           </div>
           <h1 className="font-display text-5xl sm:text-6xl lg:text-8xl font-bold tracking-tighter leading-[0.95] text-textMain">
             Genera video<br />
@@ -107,41 +107,41 @@ export default function LandingPage() {
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           <article className="glass-card rounded-3xl p-8 lg:p-10 hover:-translate-y-1 transition">
-            <h3 className="font-display text-xl font-bold mb-3">Piano Free â€” BYOK</h3>
-            <p className="text-3xl font-display font-bold mb-2">â‚¬0,00</p>
-            <p className="text-sm text-coolGray mb-6">Porta la tua chiave personale. Il sito Ã¨ solo un telecomando grafico.</p>
+            <h3 className="font-display text-xl font-bold mb-3">Piano Free — BYOK</h3>
+            <p className="text-3xl font-display font-bold mb-2">€0,00</p>
+            <p className="text-sm text-coolGray mb-6">Porta la tua chiave personale. Il sito è solo un telecomando grafico.</p>
             <ul className="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
               <li>Chiave solo nel localStorage</li>
               <li>Zero logging lato server</li>
-              <li>Costi server = â‚¬0</li>
+              <li>Costi server = €0</li>
             </ul>
           </article>
           <article className="glass-card rounded-3xl p-8 lg:p-10 relative overflow-hidden ring-1 ring-violet/40 shadow-xl shadow-violet/10">
             <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-violet/20 text-violetSoft px-2.5 py-1 rounded-full">Premium</span>
             <h3 className="font-display text-xl font-bold mb-3">Piano Starter</h3>
-            <p className="text-3xl font-display font-bold mb-2">â‚¬1,50 <span className="text-lg font-normal text-coolGray">/settimana</span></p>
-            <p className="text-sm text-coolGray mb-6">Equivalente a <strong>â‚¬6 una tantum</strong> per 10 video. Pagamento tramite Stripe.</p>
+            <p className="text-3xl font-display font-bold mb-2">€1,50 <span className="text-lg font-normal text-coolGray">/settimana</span></p>
+            <p className="text-sm text-coolGray mb-6">Equivalente a <strong>€6 una tantum</strong> per 10 video. Pagamento tramite Stripe.</p>
             <ul className="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
               <li>10 video generati, 1080p</li>
               <li>Webhooks Fal.ai inclusi</li>
-              <li>Margine netto: ~â‚¬2</li>
+              <li>Margine netto: ~€2</li>
             </ul>
           </article>
           <article className="glass-card rounded-3xl p-8 lg:p-10 hover:-translate-y-1 transition">
             <h3 className="font-display text-xl font-bold mb-3">Piano Pro</h3>
-            <p className="text-3xl font-display font-bold mb-2">â‚¬3,75 <span className="text-lg font-normal text-coolGray">/settimana</span></p>
-            <p className="text-sm text-coolGray mb-6">Equivalente a <strong>â‚¬15 una tantum</strong> per 100 video.</p>
+            <p className="text-3xl font-display font-bold mb-2">€3,75 <span className="text-lg font-normal text-coolGray">/settimana</span></p>
+            <p className="text-sm text-coolGray mb-6">Equivalente a <strong>€15 una tantum</strong> per 100 video.</p>
             <ul className="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
               <li>100 video, fino a 4K</li>
               <li>Modelli Hunyuan Pro</li>
-              <li>Margine netto: ~â‚¬11</li>
+              <li>Margine netto: ~€11</li>
             </ul>
           </article>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-6 mt-6 text-xs text-coolGray">
-          <span>ðŸ”’ Pagamento sicuro Stripe</span>
-          <span>ðŸ’³ Visa Â· Mastercard Â· PayPal</span>
-          <span className="font-medium text-textMain">â­ 4.8/5 su Trustpilot</span>
+          <span>🔒 Pagamento sicuro Stripe</span>
+          <span>💳 Visa · Mastercard · PayPal</span>
+          <span className="font-medium text-textMain">⭐ 4.8/5 su Trustpilot</span>
         </div>
       </section>
 
