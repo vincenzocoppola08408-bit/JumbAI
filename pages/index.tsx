@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase-client';
 
 // ================================================================
@@ -34,6 +35,7 @@ interface Video {
 
 export default function Home() {
   // ---- Auth ----
+  const router = useRouter();
   const [session, setSession] = useState<any>(null);
   const [profilo, setProfilo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -290,7 +292,7 @@ export default function Home() {
       <aside className="fixed left-0 top-0 bottom-0 w-64 z-50 bg-surface border-r border-white/[0.06] flex flex-col">
         {/* Logo */}
         <div className="px-6 py-6 border-b border-white/[0.06]">
-          <a href="#landing" className="flex items-center gap-2.5" aria-label="JumbAI Home - Vai alla Landing Page">
+          <a href="/landing" className="flex items-center gap-2.5" aria-label="JumbAI Home - Landing Page">
             <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-violet to-roseSoft text-white font-display font-bold text-base shadow-lg shadow-violet/20">J</span>
             <span className="font-display text-xl tracking-tight text-textMain">JumbAI</span>
           </a>
@@ -915,6 +917,19 @@ export default function Home() {
     );
   }
 
+  // Se non autenticato, mostra la richiesta di login (non la dashboard completa)
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-ink">
+        <div className="glass-card rounded-3xl p-10 max-w-md text-center shadow-2xl border-violet/20">
+          <h2 className="font-display text-3xl font-bold mb-3">JumbAI Dashboard</h2>
+          <p className="text-coolGray mb-6">Autenticati per accedere alla console generativa, ai progetti e al BYOK.</p>
+          <button onClick={() => setShowLogin(true)} className="rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold px-8 py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition">Accedi con Google</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-ink">
       {/* Sidebar */}
@@ -946,7 +961,7 @@ export default function Home() {
                 <span>Piano: Free (BYOK)</span>
               </div>
             )}
-            <button onClick={() => setShowLogin(true)} className="text-sm text-violetSoft hover:text-white transition">
+              <button onClick={() => { setShowLogin(false); router.push('/landing'); }} className="text-sm text-violetSoft hover:text-white transition">
               {session ? session.user?.email?.split('@')[0] : 'Accedi'}
             </button>
           </div>
