@@ -1,5 +1,11 @@
 {
   "framework": "nextjs",
   "buildCommand": "next build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "functions": {
+    "pages/api/*.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
 }
