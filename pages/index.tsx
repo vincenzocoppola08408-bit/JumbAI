@@ -846,8 +846,8 @@ export default function Home() {
   // ============ RENDER INTEGRAZIONI ============
   function renderIntegrazioni() {
     const integrations = [
-      { name: 'Discord', icon: '💬', desc: 'Notifiche automatiche quando un video è pronto.', connected: false },
-      { name: 'X (Twitter)', icon: '🐦', desc: 'Pubblica i tuoi video direttamente su X.', connected: false },
+      { name: 'Discord', icon: '', desc: 'Notifiche automatiche quando un video è pronto.', connected: false },
+      { name: 'X (Twitter)', icon: '', desc: 'Pubblica i tuoi video direttamente su X.', connected: false },
       { name: 'YouTube', icon: '', desc: 'Carica automaticamente su YouTube.', connected: false },
       { name: 'Telegram', icon: '✈', desc: 'Ricevi i video su Telegram.', connected: false },
     ];
