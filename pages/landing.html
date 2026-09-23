@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>JumbAI — AI Video Generator</title>
+<meta name="description" content="Genera video professionali con AI. Piano Free BYOK e Premium a margine zero." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        ink: '#0a0a0c',
+        surface: '#111114',
+        surface2: '#17171c',
+        surface3: '#1e1e26',
+        violet: '#7c5dfa',
+        violetSoft: '#a898f7',
+        roseSoft: '#f07d9a',
+        amber: '#f2b65e',
+        coolGray: '#a1a1aa',
+        textMain: '#ebecee',
+      },
+      fontFamily: { inter: ['Inter','system-ui','sans-serif'], display: ['Space Grotesk','system-ui','sans-serif'] },
+    }
+  }
+};
+</script>
+<style>
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:'Inter',system-ui,sans-serif;background:#0a0a0c;color:#ebecee}
+::selection{background:rgba(124,93,250,0.25);color:#fff}
+.glass{backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)}
+.glass-card{background:linear-gradient(180deg,rgba(255,255,255,0.03) 0%,rgba(255,255,255,0.01) 100%);border:1px solid rgba(255,255,255,0.08);box-shadow:0 20px 60px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06)}
+.gradient-text{background:linear-gradient(135deg,#f2b65e 0%,#f07d9a 60%,#7c5dfa 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.anim-fade{animation:fadeUp 0.7s ease-out both}
+@keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+.shimmer{background:linear-gradient(90deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0.06) 50%,rgba(255,255,255,0) 100%);background-size:200% auto;animation:shimmer 3s linear infinite}
+.glow{box-shadow:0 0 0 1px rgba(124,93,250,0.15),0 0 40px rgba(124,93,250,0.18)}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- NAVBAR -->
+<nav class="fixed top-0 left-0 right-0 z-50 h-16 glass border-b border-white/[0.05] flex items-center justify-between px-6 lg:px-10" aria-label="Principale">
+  <a href="#" class="flex items-center gap-2.5 group" aria-label="JumbAI Home" onclick="showLanding();return false;">
+    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet to-roseSoft text-white font-display font-bold text-sm shadow-lg shadow-violet/20 group-hover:shadow-violet/40 transition">J</span>
+    <span class="font-display text-xl tracking-tight text-textMain leading-none">JumbAI</span>
+  </a>
+  <div class="flex items-center gap-4 sm:gap-6 text-sm font-medium text-coolGray">
+    <a href="#landing" onclick="showLanding();return false;" class="hover:text-textMain transition">Home</a>
+    <a href="#pricing" onclick="showPricing();return false;" class="hover:text-textMain transition">Piani</a>
+    <button onclick="openLogin()" class="rounded-xl px-4 py-2 bg-violet text-white text-sm font-semibold hover:bg-violet/90 transition shadow-lg shadow-violet/20">Accedi / Registrati</button>
+  </div>
+</nav>
+
+<main id="app-root">
+
+<!-- LANDING PAGE (visible when not logged in) -->
+<section id="landing" class="pt-32 pb-16 lg:pt-44 lg:pb-24">
+  <div class="relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full pointer-events-none" aria-hidden="true">
+      <div class="absolute -top-20 -left-20 w-[600px] h-[600px] rounded-full bg-violet/20 blur-[120px]"></div>
+      <div class="absolute top-40 -right-20 w-[500px] h-[500px] rounded-full bg-roseSoft/20 blur-[120px]"></div>
+    </div>
+
+    <div class="relative max-w-6xl mx-auto px-6 lg:px-10 anim-fade">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass text-xs font-medium text-violetSoft mb-6 border border-white/[0.08]">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet animate-pulse"></span>
+        Piano Free BYOK attivo — zero costi server
+      </div>
+
+      <h1 class="font-display text-5xl sm:text-6xl lg:text-8xl font-bold tracking-tighter leading-[0.95] text-textMain">
+        Genera video<br>
+        <span class="gradient-text">professionali</span><br>
+        in pochi secondi.
+      </h1>
+
+      <p class="mt-6 text-lg sm:text-xl text-coolGray max-w-2xl leading-relaxed">
+        Un'architettura serverless disaccoppiata che elimina completamente i costi GPU. Piano Free tramite la tua chiave personale; Premium a margine netto automatico con Stripe e Fal.ai.
+      </p>
+
+      <div class="mt-10 flex flex-wrap items-center gap-4">
+        <button onclick="openLogin()" class="inline-flex items-center gap-2.5 rounded-xl px-7 py-3.5 bg-textMain text-ink font-semibold text-base shadow-2xl shadow-white/10 hover:shadow-white/20 hover:-translate-y-0.5 transition">Inizia a generare</button>
+        <a href="#pricing" onclick="showPricing();return false;" class="inline-flex items-center gap-2 rounded-xl px-7 py-3.5 glass text-textMain font-medium text-base hover:bg-white/[0.08] transition">Scopri i piani</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VETRINA MODELLI -->
+<section class="max-w-6xl mx-auto px-6 lg:px-10 pb-24" aria-label="Vetrina Modelli">
+  <h2 class="font-display text-3xl lg:text-4xl font-bold tracking-tight mb-8">Vetrina Modelli</h2>
+  <div class="grid md:grid-cols-3 gap-6">
+    <article class="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 transition shadow-xl">
+      <div class="aspect-video bg-ink2 relative overflow-hidden">
+        <video src="https://cdn.coverr.co/videos/coverr-cyberpunk-city-night-4k-7534/1080p.mp4" loop muted playsinline class="w-full h-full object-cover"></video>
+        <div class="absolute inset-0 bg-gradient-to-t from-ink via-transparent to-transparent"></div>
+        <div class="absolute bottom-3 left-3"><span class="text-xs font-bold px-2 py-0.5 rounded bg-violet/20 text-violetSoft">Cyberpunk</span></div>
+      </div>
+      <div class="p-5"><h3 class="font-display font-bold text-lg">Cinematic Cyberpunk</h3><p class="text-xs text-coolGray">Neon, pioggia, camera fluida, atmosfera cinematografica.</p></div>
+    </article>
+    <article class="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 transition shadow-xl">
+      <div class="aspect-video bg-ink2 relative overflow-hidden">
+        <video src="https://cdn.coverr.co/videos/coverr-fashion-woman-red-dress-5048/1080p.mp4" loop muted playsinline class="w-full h-full object-cover"></video>
+        <div class="absolute inset-0 bg-gradient-to-t from-ink via-transparent to-transparent"></div>
+        <div class="absolute bottom-3 left-3"><span class="text-xs font-bold px-2 py-0.5 rounded bg-roseSoft/20 text-roseSoft">Fashion</span></div>
+      </div>
+      <div class="p-5"><h3 class="font-display font-bold text-lg">Red Dress Cinematic</h3><p class="text-xs text-coolGray">Movimento elegante, luce naturale, inquadratura professionale.</p></div>
+    </article>
+    <article class="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 transition shadow-xl">
+      <div class="aspect-video bg-ink2 relative overflow-hidden">
+        <video src="https://cdn.coverr.co/videos/coverr-nature-mountain-sunset-4823/1080p.mp4" loop muted playsinline class="w-full h-full object-cover"></video>
+        <div class="absolute inset-0 bg-gradient-to-t from-ink via-transparent to-transparent"></div>
+        <div class="absolute bottom-3 left-3"><span class="text-xs font-bold px-2 py-0.5 rounded bg-amber/20 text-amber">Nature</span></div>
+      </div>
+      <div class="p-5"><h3 class="font-display font-bold text-lg">Mountain Sunset</h3><p class="text-xs text-coolGray">Paesaggio esteso, luce dorata, camera panoramica lenta.</p></div>
+    </article>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="max-w-6xl mx-auto px-6 lg:px-10 pb-28" aria-label="Piani commerciali">
+  <div class="text-center mb-14">
+    <h2 class="font-display text-4xl lg:text-6xl font-bold tracking-tighter">Un modello <span class="gradient-text">ibrido</span>, senza costi fissi.</h2>
+    <p class="mt-4 text-coolGray max-w-xl mx-auto">Zero server GPU, zero database sensibile, margine automatico. Il tuo profitto viene dal delta tra il prezzo di vendita e il costo API esterno.</p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-6">
+    <article class="glass-card rounded-3xl p-8 lg:p-10 hover:-translate-y-1 transition">
+      <h3 class="font-display text-xl font-bold mb-3">Piano Free — BYOK</h3>
+      <p class="text-3xl font-display font-bold mb-2">€0,00</p>
+      <p class="text-sm text-coolGray mb-6">Inserisci la tua chiave personale da Google AI Studio o HuggingFace. Il sito è solo un telecomando grafico.</p>
+      <ul class="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
+        <li>Privacy totale: chiave solo in localStorage</li>
+        <li>Zero responsabilità legale sui dati sensibili</li>
+        <li>Costi server = €0</li>
+      </ul>
+    </article>
+
+    <article class="glass-card rounded-3xl p-8 lg:p-10 relative overflow-hidden ring-1 ring-violet/40 shadow-xl shadow-violet/10">
+      <span class="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-violet/20 text-violetSoft px-2.5 py-1 rounded-full">Premium</span>
+      <h3 class="font-display text-xl font-bold mb-3">Piano Starter</h3>
+      <p class="text-3xl font-display font-bold mb-2">€1,50 <span class="text-lg font-normal text-coolGray">/ settimana</span></p>
+      <p class="text-sm text-coolGray mb-6">Equivalente a <strong>€6 una tantum</strong> per 10 video. Pagamento tramite Stripe con Merchant of Record automatico.</p>
+      <ul class="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
+        <li>Generazione asincrona anti-timeout</li>
+        <li>Webhooks Fal.ai per consegna video</li>
+        <li>Margine netto: ~€2 a pacchetto</li>
+      </ul>
+    </article>
+
+    <article class="glass-card rounded-3xl p-8 lg:p-10 hover:-translate-y-1 transition">
+      <h3 class="font-display text-xl font-bold mb-3">Piano Pro</h3>
+      <p class="text-3xl font-display font-bold mb-2">€3,75 <span class="text-lg font-normal text-coolGray">/ settimana</span></p>
+      <p class="text-sm text-coolGray mb-6">Equivalente a <strong>€15 una tantum</strong> per 100 video. Modelli Hunyuan-Video Pro inclusi.</p>
+      <ul class="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
+        <li>Generazione asincrona anti-timeout</li>
+        <li>Risoluzione 4K e audio generato</li>
+        <li>Margine netto: ~€11 a pacchetto</li>
+      </ul>
+    </article>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-center gap-6 mt-6 text-xs text-coolGray">
+    <span>🔒 Pagamento sicuro Stripe</span>
+    <span>💳 Visa · Mastercard · PayPal</span>
+    <span class="font-medium text-textMain">⭐ 4.8/5 su Trustpilot</span>
+  </div>
+</section>
+
+<!-- HUD LOGIN MODAL -->
+<div id="login-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-md" onclick="if(event.target===this) closeLogin()">
+  <div class="glass-card rounded-3xl p-8 w-full max-w-md mx-4 shadow-2xl border-violet/20" onclick="event.stopPropagation()">
+    <div class="text-center mb-6">
+      <span class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-violet to-roseSoft text-white font-display font-bold text-2xl shadow-lg shadow-violet/20 mb-3">J</span>
+      <h2 class="font-display text-2xl font-bold text-textMain">Accedi / Registrati</h2>
+      <p class="text-sm text-coolGray mt-1">Entra per sbloccare il Piano Premium</p>
+    </div>
+    <div class="space-y-3">
+      <button onclick="authGoogle()" class="w-full rounded-xl bg-white text-ink font-bold py-3 shadow-lg hover:bg-gray-100 transition flex items-center justify-center gap-2 mb-2">
+        <span>🔵</span> Continua con Google
+      </button>
+      <div class="flex items-center gap-3 text-xs text-coolGray"><span class="flex-1 h-px bg-white/10"></span> oppure <span class="flex-1 h-px bg-white/10"></span></div>
+      <input id="email-in" type="email" placeholder="tua@email.com" class="w-full rounded-xl bg-ink border border-white/[0.12] text-textMain px-4 py-3 text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-violet/40" />
+      <input id="pwd-in" type="password" placeholder="Password" class="w-full rounded-xl bg-ink border border-white/[0.12] text-textMain px-4 py-3 text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-violet/40" />
+      <button onclick="authEmail()" class="w-full rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition">Accedi / Registrati</button>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD (hidden until auth) -->
+<div id="dashboard" class="hidden min-h-screen bg-ink">
+  <aside class="fixed left-0 top-0 bottom-0 w-64 z-50 bg-surface border-r border-white/[0.06] flex flex-col">
+    <div class="px-6 py-6 border-b border-white/[0.06]">
+      <a href="#landing" onclick="showLanding();return false;" class="flex items-center gap-2.5" aria-label="JumbAI Home - Landing Page">
+        <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-violet to-roseSoft text-white font-display font-bold text-base shadow-lg shadow-violet/20">J</span>
+        <span class="font-display text-xl tracking-tight text-textMain">JumbAI</span>
+      </a>
+    </div>
+    <nav class="flex-1 px-3 py-6 space-y-1">
+      <button onclick="setSezione('casa')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-coolGray hover:text-textMain hover:bg-white/[0.06] transition">🏠 Casa</button>
+      <button onclick="setSezione('progetti')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-coolGray hover:text-textMain hover:bg-white/[0.06] transition">🎬 Progetti</button>
+      <button onclick="setSezione('sviluppatori')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-coolGray hover:text-textMain hover:bg-white/[0.06] transition">⚙️ Sviluppatori</button>
+    </nav>
+    <div class="px-4 py-4 border-t border-white/[0.06]">
+      <div class="badge-crediti border-violet/30 bg-violet/10 text-violetSoft text-xs"><span>⭐</span><span id="badge-crediti">Premium (0 🪙)</span></div>
+    </div>
+    <div class="px-4 py-4 border-t border-white/[0.06]">
+      <button onclick="logout()" class="text-xs text-roseSoft hover:text-white">Esci</button>
+    </div>
+  </aside>
+
+  <div class="ml-64 min-h-screen p-8 lg:p-10">
+    <header class="sticky top-0 z-40 h-16 glass border-b border-white/[0.05] flex items-center justify-between px-8">
+      <h1 class="font-display text-lg font-bold" id="dash-title">Casa</h1>
+      <div class="flex gap-3 text-xs font-medium text-coolGray" id="dash-badge"></div>
+    </header>
+
+    <main id="dash-main"></main>
+  </div>
+</div>
+
+<script>
+// ---- State ----
+let currentSezione = 'casa';
+let videos = [];
+let userSession = null;
+let userProfile = null;
+
+// ---- Helpers ----
+function showLanding() {
+  document.getElementById('landing').classList.remove('hidden');
+  document.getElementById('dashboard').classList.add('hidden');
+  window.scrollTo(0,0);
+}
+
+function showDashboard() {
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  renderDashboard();
+}
+
+function openLogin() { document.getElementById('login-modal').classList.remove('hidden'); document.getElementById('login-modal').classList.add('flex'); }
+function closeLogin() { document.getElementById('login-modal').classList.add('hidden'); document.getElementById('login-modal').classList.remove('flex'); }
+
+function authEmail() {
+  const em = document.getElementById('email-in').value;
+  const pw = document.getElementById('pwd-in').value;
+  if (!em || !pw) { alert('Inserisci email e password'); return; }
+  // Simula login successo
+  userSession = { user: { id: 'demo-user-001', email: em } };
+  userProfile = { id: 'demo-user-001', crediti: 10, piano: 'premium' };
+  closeLogin();
+  updateBadge();
+  showDashboard();
+  alert('Login effettuato! Benvenuto in JumbAI.');
+}
+
+function authGoogle() {
+  alert('Connessione con Google OAuth via Supabase. In produzione usa supabase.auth.signInWithOAuth({provider: "google"}).');
+  userSession = { user: { id: 'demo-user-002', email: 'google-user@demo.com' } };
+  userProfile = { id: 'demo-user-002', crediti: 5, piano: 'free' };
+  closeLogin();
+  updateBadge();
+  showDashboard();
+  alert('Login con Google completato!');
+}
+
+function logout() {
+  userSession = null;
+  userProfile = null;
+  showLanding();
+}
+
+function updateBadge() {
+  const badge = document.getElementById('badge-crediti');
+  if (userProfile) {
+    badge.textContent = `Premium (${userProfile.crediti} 🪙)`;
+  } else {
+    badge.textContent = 'Free (BYOK)';
+  }
+}
+
+function setSezione(s) {
+  currentSezione = s;
+  const titles = { casa: 'Casa', progetti: 'Progetti', sviluppatori: 'Sviluppatori' };
+  document.getElementById('dash-title').textContent = titles[s] || 'Dashboard';
+  renderDashboard();
+}
+
+// ---- Dashboard Rendering ----
+function renderDashboard() {
+  const main = document.getElementById('dash-main');
+  if (currentSezione === 'casa') {
+    main.innerHTML = `
+      <section class="glass-card rounded-3xl p-8 shadow-2xl mb-8">
+        <h2 class="font-display text-2xl font-bold mb-4">Console Generativa</h2>
+        <p class="text-sm text-coolGray mb-4">Seleziona la modalità, scrivi il prompt e genera.</p>
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button onclick="setTab('testo')" class="tab-btn active">Testo in Video</button>
+          <button onclick="setTab('immagine')" class="tab-btn">Immagine in Video</button>
+          <button onclick="setTab('frame')" class="tab-btn">Primo Frame</button>
+        </div>
+        <textarea id="prompt-area" rows="3" class="w-full rounded-xl bg-ink border border-white/10 text-textMain px-4 py-3 text-sm mb-4" placeholder="Descrivi il video... (es. donna in abito rosso, strada neon, pioggia leggera)"></textarea>
+        <button onclick="generatePremium()" class="rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold px-6 py-3 shadow-lg shadow-violet/30">Genera Premium (1 🪙)</button>
+      </section>
+    `;
+  } else if (currentSezione === 'progetti') {
+    main.innerHTML = `
+      <section class="max-w-6xl mx-auto">
+        <h2 class="font-display text-3xl font-bold mb-4">Progetti</h2>
+        <div class="flex gap-2 mb-6">
+          <button onclick="filterGallery('tutti')" class="filter-btn active">Tutti</button>
+          <button onclick="filterGallery('rendering')" class="filter-btn">In Rendering</button>
+          <button onclick="filterGallery('completati')" class="filter-btn">Completati</button>
+        </div>
+        <div id="gallery-grid" class="grid md:grid-cols-3 gap-5"></div>
+      </section>
+    `;
+    setTimeout(() => {
+      const grid = document.getElementById('gallery-grid');
+      if (grid) {
+        grid.innerHTML = `
+          <article class="glass-card rounded-2xl p-4"><div class="aspect-video bg-ink rounded-lg flex items-center justify-center"><span class="text-4xl">⏳</span></div><p class="text-xs text-coolGray mt-2">In Rendering...</p></article>
+          <article class="glass-card rounded-2xl p-4"><div class="aspect-video bg-ink rounded-lg flex items-center justify-center"><video src="https://cdn.coverr.co/videos/coverr-cyberpunk-city-night-4k-7534/1080p.mp4" class="w-full h-full rounded-lg" controls></video></div><p class="text-xs text-coolGray mt-2">Completato</p></article>
+          <article class="glass-card rounded-2xl p-4"><div class="aspect-video bg-ink rounded-lg flex items-center justify-center"><span class="text-4xl">❌</span></div><p class="text-xs text-red-400 mt-2">Fallito</p></article>
+        `;
+      }
+    }, 100);
+  } else if (currentSezione === 'sviluppatori') {
+    main.innerHTML = `
+      <section class="glass-card rounded-3xl p-8">
+        <h2 class="font-display text-2xl font-bold mb-2">🔑 BYOK</h2>
+        <p class="text-sm text-coolGray mb-4">Inserisci la tua chiave Google Gemini (solo nel browser).</p>
+        <input type="password" id="byok-in" placeholder="API Key" class="w-full rounded-xl bg-ink border border-white/10 text-textMain px-4 py-3 text-sm mb-2" />
+        <button onclick="saveByok()" class="rounded-xl bg-violet text-white font-semibold px-5 py-2 shadow-lg shadow-violet/20">Salva Chiave</button>
+        <div class="mt-4 text-xs text-coolGray"><strong>Nota:</strong> la chiave resta solo nel localStorage. Il server non la vede mai.</div>
+      </section>
+    `;
+  }
+}
+
+function setTab(t) { document.getElementById('tab-label').textContent = t; }
+function filterGallery(f) { document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); event.target.classList.add('active'); }
+function generatePremium() { const p = document.getElementById('prompt-area')?.value || ''; if (!p) return alert('Scrivi un prompt'); const el = document.getElementById('gallery-grid'); if (el) { el.innerHTML += '<article class="glass-card rounded-2xl p-4"><div class="aspect-video bg-ink rounded-lg flex items-center justify-center"><div class="shimmer w-full h-full"><span class="inline-block w-8 h-8 rounded-full border-2 border-amber border-t-transparent animate-spin"></span></div></div><p class="text-xs text-coolGray mt-2">⏳ In Rendering</p></article>'; } alert('Richiesta inviata a Fal.ai (simulazione demo)!'); }
+function saveByok() { const v = document.getElementById('byok-in').value; if (v) { localStorage.setItem('jumbai_byok_key', v); alert('Chiave salvata!'); } }
+</script>
+</body>
+</html>

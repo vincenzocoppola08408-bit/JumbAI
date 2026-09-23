@@ -290,10 +290,8 @@ export default function Home() {
       <aside className="fixed left-0 top-0 bottom-0 w-64 z-50 bg-surface border-r border-white/[0.06] flex flex-col">
         {/* Logo */}
         <div className="px-6 py-6 border-b border-white/[0.06]">
-          <a href="#" className="flex items-center gap-2.5">
-            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-violet to-roseSoft text-white font-display font-bold text-base shadow-lg shadow-violet/20">
-              J
-            </span>
+          <a href="#landing" className="flex items-center gap-2.5" aria-label="JumbAI Home - Vai alla Landing Page">
+            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-violet to-roseSoft text-white font-display font-bold text-base shadow-lg shadow-violet/20">J</span>
             <span className="font-display text-xl tracking-tight text-textMain">JumbAI</span>
           </a>
         </div>
@@ -877,6 +875,16 @@ export default function Home() {
             <div>
               <label className="block text-sm font-medium text-coolGray mb-1">Password</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-jumbai" placeholder="Minimo 6 caratteri" />
+            </div>
+
+            <button onClick={() => {
+              supabase.auth.signInWithOAuth({ provider: 'google' });
+            }} className="w-full rounded-xl bg-white text-ink font-bold py-3 shadow-lg hover:bg-gray-100 transition flex items-center justify-center gap-2 mb-3">
+              <span>🔵</span> Continua con Google
+            </button>
+
+            <div className="flex items-center gap-3 text-xs text-coolGray my-2">
+              <span className="flex-1 h-px bg-white/10"></span> oppure <span className="flex-1 h-px bg-white/10"></span>
             </div>
 
             <button onClick={handleAuth} className="w-full rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition">
