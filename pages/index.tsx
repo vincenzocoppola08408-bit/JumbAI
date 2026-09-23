@@ -776,7 +776,6 @@ export default function Home() {
             </span>
           </div>
         </section>
-        </section>
       </div>
     );
   }
