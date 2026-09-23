@@ -6,7 +6,7 @@ import { signInWithGoogle } from '../lib/auth-google';
 import { trackGenera, trackCheckout } from '../lib/analytics';
 
 // ================================================================
-// JumbAI 2.0 — Full Dashboard: Sidebar + Console + Gallery + Auth
+// JumbAI 2.0 \\u2014 Full Dashboard: Sidebar + Console + Gallery + Auth
 // ================================================================
 
 type Sezione = 'casa' | 'progetti' | 'integrazioni' | 'sviluppatori';
@@ -362,7 +362,7 @@ export default function Home() {
           {session ? (
             <div className="badge-crediti border-violet/30 bg-violet/10 text-violetSoft">
               <span className="text-sm">{'\u2B50'}</span>
-              <span>Premium · {creditiUtente} crediti</span>
+              <span>Premium \\u00B7 {creditiUtente} crediti</span>
             </div>
           ) : (
             <div className="badge-crediti border-amber/30 bg-amber/10 text-amber">
@@ -631,7 +631,7 @@ export default function Home() {
               disabled={inviando}
               className="rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold py-3.5 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {inviando ? '\u23F3' : '\u26A1'} Genera Premium <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-md">{costoCrediti} 🪙</span>
+              {inviando ? '\u23F3' : '\u26A1'} Genera Premium <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-md">{costoCrediti} \\uD83E\\uDE99</span>
             </button>
           </div>
 
@@ -811,7 +811,7 @@ export default function Home() {
                 <div className="p-4">
                   <p className="text-xs text-coolGray mb-2 line-clamp-2">{video.prompt}</p>
                   <div className="flex items-center justify-between text-[10px] text-white/40">
-                    <span>{video.durata_secondi}s · {video.risoluzione}</span>
+                    <span>{video.durata_secondi}s \\u00B7 {video.risoluzione}</span>
                     <span>{new Date(video.creato_il).toLocaleDateString('it-IT')}</span>
                   </div>
                   {/* Export formato (ADD-5/ADD-6): MP4 provider, WebM/GIF con estensione scelta */}

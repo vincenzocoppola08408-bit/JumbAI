@@ -5,7 +5,7 @@ import { signInWithGoogle } from '../lib/auth-google';
 const FAQ_ITEMS = [
   {
     q: 'Quanto costa JumbAI?',
-    // crea-checkout.js: starter amount 600 (€6) / 10 crediti; pro amount 1500 (€15) / 100 crediti
+    // crea-checkout.js: starter amount 600 (\\u20AC6) / 10 crediti; pro amount 1500 (\\u20AC15) / 100 crediti
     a: 'Free BYOK costa \u20AC0 lato server, ma restano eventuali costi del provider sulla tua chiave. Premium: Starter \u20AC6 una tantum per 10 video e Pro \u20AC15 una tantum per 100 video via Stripe.',
   },
   {
@@ -14,7 +14,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Di chi \u00E8 la propriet\u00E0 dei video generati?',
-    // TODO: nessun ToS legale nel repo — wording cauto
+    // TODO: nessun ToS legale nel repo \\u2014 wording cauto
     a: 'I video sono contenuti generati a partire dal tuo prompt. Per diritti d\'uso e propriet\u00E0 intellettuale consulta i Terms del servizio e dei provider (Fal.ai / modelli); non sostituiscono un parere legale.',
   },
   {
