@@ -77,6 +77,11 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Errore aggiornamento video.' });
       }
 
+      // TODO(ADD-11): Email «video pronto» — nessun provider email già nel progetto
+      // (no Resend/SendGrid/nodemailer/SMTP in package.json). Quando configuri un provider,
+      // invia qui all'email utente (auth) solo su stato completato, con link/titolo video.
+      // Non implementare finché non esiste un provider reale.
+
       return res.status(200).json({
         status: 'success',
         video_id: videoId,

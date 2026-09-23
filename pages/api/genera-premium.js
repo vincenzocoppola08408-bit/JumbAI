@@ -15,6 +15,7 @@ export default async function handler(req, res) {
     modello = 'hunyuan-video',
     durata_secondi = 4,
     risoluzione = '720p',
+    aspect_ratio = null,
     genera_audio = false,
     ottimizza_prompt = false,
     prompt_negativo = '',
@@ -98,13 +99,18 @@ export default async function handler(req, res) {
       '4K': '16:9',
     };
 
+    const aspectRatioFinale =
+      aspect_ratio === '9:16' || aspect_ratio === '16:9'
+        ? aspect_ratio
+        : (aspectRatioMap[risoluzione] || '16:9');
+
     const falBody = {
       prompt: ottimizza_prompt
         ? `${prompt}. Cinematic, high quality, detailed scene, smooth camera movement, professional lighting.`
         : prompt,
       ...(prompt_negativo && { negative_prompt: prompt_negativo }),
       ...(seed !== null && { seed: Number(seed) }),
-      aspect_ratio: aspectRatioMap[risoluzione] || '16:9',
+      aspect_ratio: aspectRatioFinale,
       duration_seconds: durata_secondi,
       ...(genera_audio && { enable_audio: true }),
       // user_data per il webhook

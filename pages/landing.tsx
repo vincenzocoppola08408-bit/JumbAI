@@ -1,8 +1,34 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase-client';
 
+const FAQ_ITEMS = [
+  {
+    q: 'Quanto costa JumbAI?',
+    // crea-checkout.js: starter amount 600 (€6) / 10 crediti; pro amount 1500 (€15) / 100 crediti
+    a: 'Piano Free BYOK a €0 lato server (usi la tua chiave). Premium: pacchetti one-shot Starter ≈ €6 per 10 video e Pro ≈ €15 per 100 video via Stripe (come da crea-checkout). In landing i prezzi sono anche mostrati in equivalente settimanale.',
+  },
+  {
+    q: 'Come funziona la generazione video?',
+    a: 'Free BYOK usa la tua chiave salvata in localStorage direttamente dal browser; il risultato dipende dal provider configurato. Premium: dopo login, /api/genera-premium scala i crediti e invia il job a Fal.ai; lo stato aggiorna i Progetti in tempo reale.',
+  },
+  {
+    q: 'Di chi è la proprietà dei video generati?',
+    // TODO: nessun ToS legale nel repo — wording cauto
+    a: 'I video sono contenuti generati a partire dal tuo prompt. Per diritti d\'uso e proprietà intellettuale consulta i Terms del servizio e dei provider (Fal.ai / modelli); non sostituiscono un parere legale.',
+  },
+  {
+    q: 'Posso scaricare i video in MP4?',
+    a: 'I video completati compaiono in Progetti con url_video e player. Dove disponibile, usa Scarica MP4 sulla card (download illimitato dal browser). Se il browser non forza il file, puoi aprire l\'URL e salvarlo manualmente.',
+  },
+  {
+    q: 'Cosa sono i crediti?',
+    a: 'I crediti stanno su profili.crediti. Generare in Premium ne consuma 1 o 2 in base alla durata. I pacchetti Starter (+10) e Pro (+100) li ricaricano dopo il checkout Stripe.',
+  },
+];
+
 export default function LandingPage() {
   const [loading, setLoading] = useState(false);
+  const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
   return (
     <div className="min-h-screen bg-ink text-textMain font-inter">
@@ -14,6 +40,7 @@ export default function LandingPage() {
         </a>
         <div className="flex items-center gap-4 text-sm font-medium text-coolGray">
           <a href="#pricing" className="hover:text-textMain transition">Piani</a>
+          <a href="#faq" className="hover:text-textMain transition">FAQ</a>
           <button onClick={() => { setLoading(true); supabase.auth.signInWithOAuth({ provider: 'google' }).catch(() => setLoading(false)); }} className="rounded-xl px-4 py-2 bg-violet text-white text-sm font-semibold hover:bg-violet/90 transition shadow-lg shadow-violet/20 disabled:opacity-50" disabled={loading}>
             {loading ? 'Caricamento...' : 'Accedi con Google'}
           </button>
@@ -115,6 +142,37 @@ export default function LandingPage() {
           <span>🔒 Pagamento sicuro Stripe</span>
           <span>💳 Visa · Mastercard · PayPal</span>
           <span className="font-medium text-textMain">⭐ 4.8/5 su Trustpilot</span>
+        </div>
+      </section>
+
+      {/* FAQ accordion (ADD-3) */}
+      <section id="faq" className="max-w-3xl mx-auto px-6 lg:px-10 pb-28" aria-label="FAQ">
+        <div className="text-center mb-10">
+          <h2 className="font-display text-3xl lg:text-5xl font-bold tracking-tighter">Domande frequenti</h2>
+          <p className="mt-3 text-coolGray text-sm">Risposte brevi basate su come funziona il prodotto oggi.</p>
+        </div>
+        <div className="space-y-3">
+          {FAQ_ITEMS.map((item, idx) => {
+            const open = faqOpen === idx;
+            return (
+              <div key={item.q} className="glass-card rounded-2xl overflow-hidden border border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setFaqOpen(open ? null : idx)}
+                  className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-white/[0.03] transition"
+                  aria-expanded={open}
+                >
+                  <span className="font-display font-semibold text-sm sm:text-base">{item.q}</span>
+                  <span className={`text-violetSoft text-lg transition ${open ? 'rotate-45' : ''}`}>+</span>
+                </button>
+                {open && (
+                  <div className="px-5 pb-5 text-sm text-coolGray leading-relaxed border-t border-white/[0.06] pt-3">
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
     </div>

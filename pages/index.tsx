@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase-client';
+import { trackGenera, trackCheckout } from '../lib/analytics';
 
 // ================================================================
 // JumbAI 2.0 — Full Dashboard: Sidebar + Console + Gallery + Auth
@@ -52,6 +53,8 @@ export default function Home() {
   const [modello, setModello] = useState('gemini-2.0-flash-exp');
   const [durata, setDurata] = useState(4);
   const [risoluzione, setRisoluzione] = useState('720p');
+  // ADD-8: aspect_ratio per Fal Premium (9:16 | 16:9); nascosto in BYOK
+  const [aspectRatio, setAspectRatio] = useState('16:9');
   const [generaAudio, setGeneraAudio] = useState(false);
   const [ottimizzaPrompt, setOttimizzaPrompt] = useState(true);
   const [fileImmagine, setFileImmagine] = useState<File | null>(null);
@@ -71,6 +74,10 @@ export default function Home() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegistrazione, setIsRegistrazione] = useState(false);
+
+  // ---- Onboarding (ADD-2) ----
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -98,6 +105,28 @@ export default function Home() {
     const saved = localStorage.getItem('jumbai_byok_key');
     if (saved) setByokKey(saved);
   }, []);
+
+  // Onboarding: mostra solo al primo login (flag localStorage.jumbai_onboarded = '1')
+  useEffect(() => {
+    if (!session) {
+      setShowOnboarding(false);
+      return;
+    }
+    try {
+      const flag = localStorage.getItem('jumbai_onboarded');
+      if (flag !== '1') setShowOnboarding(true);
+    } catch {
+      setShowOnboarding(true);
+    }
+  }, [session]);
+
+  function completaOnboarding() {
+    try {
+      localStorage.setItem('jumbai_onboarded', '1');
+    } catch { /* ignore */ }
+    setShowOnboarding(false);
+    setOnboardingStep(0);
+  }
 
   async function caricaProfilo(userId: string) {
     const { data } = await supabase.from('profili').select('*').eq('id', userId).single();
@@ -190,6 +219,7 @@ export default function Home() {
   async function eseguiFree() {
     if (!byokKey.trim()) return alert('Inserisci la tua API Key BYOK nella sezione Sviluppatori.');
     if (!prompt.trim()) return alert('Scrivi un prompt.');
+    trackGenera('free');
     setInviando(true);
     setMessaggio('Invio richiesta BYOK...');
     try {
@@ -217,6 +247,7 @@ export default function Home() {
   async function eseguiPremium() {
     if (!session) return setShowLogin(true);
     if (!prompt.trim()) return alert('Scrivi un prompt.');
+    trackGenera('premium');
     setInviando(true);
     setMessaggio('Invio richiesta Premium...');
     try {
@@ -226,6 +257,7 @@ export default function Home() {
         modello,
         durata_secondi: durata,
         risoluzione,
+        aspect_ratio: aspectRatio,
         genera_audio: generaAudio,
         ottimizza_prompt: ottimizzaPrompt,
         prompt_negativo: promptNegativo.trim(),
@@ -250,6 +282,8 @@ export default function Home() {
         setFileImmagine(null);
         setImmaginePreview(null);
         setGeneraAudio(false);
+        // Aggiorna badge crediti dopo consumo Premium
+        if (session?.user?.id) await caricaProfilo(session.user.id);
       } else {
         alert('❌ ' + (data.error || 'Errore'));
       }
@@ -278,6 +312,9 @@ export default function Home() {
 
   // Calcola costo crediti in base a durata
   const costoCrediti = durata <= 6 ? 1 : 2;
+
+  // Prefer profili.crediti (schema attuale); fallback credits se assente a runtime
+  const creditiUtente = profilo?.crediti ?? profilo?.credits ?? 0;
 
   // ============ RENDER SIDEBAR ============
   function renderSidebar() {
@@ -317,7 +354,7 @@ export default function Home() {
           {session ? (
             <div className="badge-crediti border-violet/30 bg-violet/10 text-violetSoft">
               <span className="text-sm">⭐</span>
-              <span>Premium ({profilo?.crediti ?? 0} 🪙)</span>
+              <span>Premium · {creditiUtente} crediti</span>
             </div>
           ) : (
             <div className="badge-crediti border-amber/30 bg-amber/10 text-amber">
@@ -419,6 +456,26 @@ export default function Home() {
               placeholder="Una donna in un abito rosso cammina in una strada cyberpunk illuminata al neon, pioggia leggera, camera fluida cinematic..."
               className="input-jumbai resize-y min-h-[100px]"
             />
+            {/* Template prompt chips (ADD-4) */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              {[
+                { label: 'Citt?', text: 'Un gatto che vola sopra una citt? al tramonto, nuvole dorate, camera panoramica lenta, atmosfera cinematografica' },
+                { label: 'Natura', text: 'Tramonto dorato sulle Alpi, laghetto alpino che riflette le nuvole, camera panoramica lenta, luce naturale' },
+                { label: 'Moda', text: 'Modella in passerella al rallentatore, abito di seta che ondeggia, luci morbide da studio, inquadratura elegante' },
+                { label: 'Prodotto', text: 'Una sneaker premium su piedistallo di vetro, rotazione lenta a 360 gradi, riflessi metallici, sfondo scuro minimal' },
+                { label: 'Spazio', text: 'Astronave che emerge dalle nuvole di una gigante gassosa, scie di luce blu, camera orbitale epica' },
+                { label: 'Cucina', text: 'Burger gourmet al rallentatore con formaggio filante, vapore caldo, luci morbide, stile video pubblicitario' },
+              ].map((chip) => (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={() => setPrompt(chip.text)}
+                  className="rounded-full px-3 py-1.5 text-xs font-medium glass border border-white/[0.08] text-coolGray hover:text-textMain hover:border-violet/40 hover:bg-violet/10 transition"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Modello */}
@@ -473,6 +530,17 @@ export default function Home() {
                     <option value="4K">4K</option>
                   </select>
                 </div>
+
+                {/* Aspect ratio ADD-8: solo Premium/Fal; nascosto in BYOK (Gemini testo) */}
+                {session && (
+                  <div>
+                    <label className="block text-sm font-medium text-coolGray mb-2">Formato (aspect ratio)</label>
+                    <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="select-jumbai">
+                      <option value="16:9">16:9 — Orizzontale</option>
+                      <option value="9:16">9:16 — Verticale (Reels/Stories)</option>
+                    </select>
+                  </div>
+                )}
 
                 {/* Toggle Audio */}
                 <div className="flex items-center justify-between">
@@ -570,7 +638,7 @@ export default function Home() {
                 <li>✅ Supporto prioritario</li>
               </ul>
               <button
-                onClick={() => session ? alert('Checkout Stripe in arrivo!') : setShowLogin(true)}
+                onClick={() => { if (!session) { setShowLogin(true); return; } trackCheckout('starter'); alert('Checkout Stripe in arrivo!'); }}
                 className="w-full rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-semibold py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition"
               >
                 Acquista Starter
@@ -589,7 +657,7 @@ export default function Home() {
                 <li>✅ Modelli premium</li>
               </ul>
               <button
-                onClick={() => session ? alert('Checkout Stripe in arrivo!') : setShowLogin(true)}
+                onClick={() => { if (!session) { setShowLogin(true); return; } trackCheckout('pro'); alert('Checkout Stripe in arrivo!'); }}
                 className="w-full rounded-xl bg-gradient-to-r from-amber to-roseSoft text-white font-semibold py-3 shadow-lg shadow-amber/30 hover:shadow-amber/50 transition"
               >
                 Acquista Pro
@@ -709,6 +777,26 @@ export default function Home() {
                     <span>{video.durata_secondi}s · {video.risoluzione}</span>
                     <span>{new Date(video.creato_il).toLocaleDateString('it-IT')}</span>
                   </div>
+                  {/* Export formato (ADD-5/ADD-6): MP4 provider, WebM/GIF con estensione scelta */}
+                  {video.stato === 'completato' && video.url_video && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-coolGray">Export formato</p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {(['mp4', 'webm', 'gif'] as const).map((formato) => (
+                          <a
+                            key={formato}
+                            href={video.url_video as string}
+                            download={`jumbai-${video.id}.${formato}`}
+                            title={formato === 'mp4' ? 'Scarica MP4' : 'Il provider fornisce MP4; conversione nativa in roadmap'}
+                            className={`inline-flex items-center justify-center rounded-lg border text-[11px] font-semibold py-2 transition ${formato === 'mp4' ? 'bg-violet/20 border-violet/30 text-violetSoft hover:bg-violet/30' : 'bg-surface2 border-white/[0.10] text-coolGray hover:text-textMain'}`}
+                          >
+                            {formato.toUpperCase()}
+                          </a>
+                        ))}
+                      </div>
+                      <p className="text-[10px] leading-relaxed text-white/40">Il provider consegna MP4; WebM/GIF usano il nome scelto, la conversione nativa ? in roadmap.</p>
+                    </div>
+                  )}
                 </div>
               </article>
             ))}
@@ -821,8 +909,8 @@ export default function Home() {
             <h3 className="font-display text-xl font-bold mb-4">📊 La tua Dashboard</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="rounded-2xl bg-ink border border-white/[0.08] p-4 text-center">
-                <p className="text-2xl font-bold">{profilo?.crediti ?? 0}</p>
-                <p className="text-xs text-coolGray">🪙 Crediti</p>
+                <p className="text-2xl font-bold tabular-nums">{creditiUtente}</p>
+                <p className="text-xs text-coolGray">Crediti</p>
               </div>
               <div className="rounded-2xl bg-ink border border-white/[0.08] p-4 text-center">
                 <p className="text-2xl font-bold">{videos.length}</p>
@@ -953,7 +1041,7 @@ export default function Home() {
             {session ? (
               <div className="badge-crediti border-violet/30 bg-violet/10 text-violetSoft text-xs">
                 <span>⭐</span>
-                <span>Piano: Premium ({profilo?.crediti ?? 0} 🪙)</span>
+                <span>Crediti: <strong className="tabular-nums">{creditiUtente}</strong></span>
               </div>
             ) : (
               <div className="badge-crediti border-amber/30 bg-amber/10 text-amber text-xs">
@@ -980,6 +1068,85 @@ export default function Home() {
 
       {/* Modale Login */}
       {renderLoginModal()}
+
+      {/* Onboarding 3-step (ADD-2) */}
+      {showOnboarding && session && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="glass-card rounded-3xl p-8 w-full max-w-lg shadow-2xl border border-violet/20 relative">
+            <button
+              type="button"
+              onClick={completaOnboarding}
+              className="absolute top-4 right-4 text-xs text-coolGray hover:text-textMain transition"
+            >
+              Chiudi
+            </button>
+            <div className="flex items-center gap-2 mb-6">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className={`h-1.5 flex-1 rounded-full ${i <= onboardingStep ? 'bg-violet' : 'bg-white/10'}`}
+                />
+              ))}
+            </div>
+            {onboardingStep === 0 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-violetSoft">Passo 1 di 3</p>
+                <h3 className="font-display text-2xl font-bold">Generare un video</h3>
+                <p className="text-sm text-coolGray leading-relaxed">
+                  Vai in <strong className="text-textMain">Casa</strong> e usa la Console Generativa: scrivi un prompt (o scegli un template) e premi Genera Gratis (BYOK) oppure Genera Premium.
+                </p>
+              </div>
+            )}
+            {onboardingStep === 1 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-violetSoft">Passo 2 di 3</p>
+                <h3 className="font-display text-2xl font-bold">Crediti e piani</h3>
+                <p className="text-sm text-coolGray leading-relaxed">
+                  Il badge in alto mostra i tuoi <strong className="text-textMain">crediti</strong> Premium. I pacchetti Starter (~€6 / 10 video) e Pro (~€15 / 100 video) ricaricano il saldo; Free resta BYOK a €0 lato server.
+                </p>
+              </div>
+            )}
+            {onboardingStep === 2 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-violetSoft">Passo 3 di 3</p>
+                <h3 className="font-display text-2xl font-bold">Trovare i progetti</h3>
+                <p className="text-sm text-coolGray leading-relaxed">
+                  Nella sidebar apri <strong className="text-textMain">Progetti</strong> per vedere i video in rendering o completati. Da lì puoi riprodurre e scaricare gli MP4 pronti.
+                </p>
+              </div>
+            )}
+            <div className="mt-8 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={completaOnboarding}
+                className="text-sm text-coolGray hover:text-textMain transition"
+              >
+                Salta
+              </button>
+              {onboardingStep < 2 ? (
+                <button
+                  type="button"
+                  onClick={() => setOnboardingStep((s) => s + 1)}
+                  className="rounded-xl bg-violet text-white text-sm font-semibold px-5 py-2.5 hover:bg-violet/90 transition shadow-lg shadow-violet/20"
+                >
+                  Avanti
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    completaOnboarding();
+                    setSezione('progetti');
+                  }}
+                  className="rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white text-sm font-bold px-5 py-2.5 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition"
+                >
+                  Vai ai Progetti
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

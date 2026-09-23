@@ -1,5 +1,6 @@
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
+import Script from 'next/script';
 import '../styles/globals.css';
 
 export default function App({ Component, pageProps }: AppProps) {
@@ -17,6 +18,8 @@ export default function App({ Component, pageProps }: AppProps) {
           rel="stylesheet"
         />
       </Head>
+      {/* ADD-10: Vercel Web Analytics — pageviews automatici, no cookie terze parti */}
+      <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />
       <Component {...pageProps} />
     </>
   );
