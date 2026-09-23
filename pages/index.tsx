@@ -11,7 +11,7 @@ import { trackGenera, trackCheckout } from '../lib/analytics';
 
 type Sezione = 'casa' | 'progetti' | 'integrazioni' | 'sviluppatori';
 type TabInput = 'testo' | 'immagine' | 'frame' | 'multiple';
-type FiltroGalleria = 'tutti' | 'rendering' | 'completati' | 'falliti';
+type FiltroGalleria = 'tutti' | 'rendering' | 'completato' | 'fallito';
 type StatoVideo = 'rendering' | 'completato' | 'fallito';
 
 interface Video {
@@ -311,6 +311,47 @@ export default function Home() {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  }
+
+  // ============ STRIPE CHECKOUT ============
+  async function avviaCheckout(pacchetto: 'starter' | 'pro') {
+    if (!session?.user?.id) {
+      setShowLogin(true);
+      return;
+    }
+    trackCheckout(pacchetto);
+    try {
+      const resp = await fetch('/api/crea-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: session.user.id, pacchetto }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        alert(data.error || 'Errore creazione checkout.');
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('URL checkout mancante.');
+      }
+    } catch (e: any) {
+      alert('Errore checkout: ' + (e?.message || 'sconosciuto'));
+    }
+  }
+
+  function etichettaPiano(pacchetto: 'starter' | 'pro'): { label: string; disabled: boolean } {
+    const piano = (profilo?.piano || 'free') as string;
+    // Schema attuale: piano in ('free','premium') — non distingue starter vs pro.
+    // Se premium: "Cambia piano" (ricarica). Se in futuro piano===starter|pro, marca solo quel piano.
+    if (piano === pacchetto) {
+      return { label: 'Già in utilizzo', disabled: true };
+    }
+    if (piano === 'premium' || piano === 'starter' || piano === 'pro') {
+      return { label: 'Cambia piano', disabled: false };
+    }
+    return { label: pacchetto === 'starter' ? 'Acquista Starter' : 'Acquista Pro', disabled: false };
   }
 
   // ============ HELPER VIDEO FILTRATI ============
@@ -654,53 +695,87 @@ export default function Home() {
             <p className="mt-2 text-sm text-coolGray">Psicologia settimanale: prezzi che sembrano un caffè. Annulla quando vuoi.</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* Free — fuori da Stripe */}
+            <div className="glass-card rounded-3xl p-8 hover:-translate-y-1 transition relative">
+              <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-surface3 text-coolGray px-2.5 py-1 rounded-full">Free</span>
+              <h3 className="font-display text-2xl font-bold mb-1">€0<span className="text-sm text-coolGray font-normal">/sempre</span></h3>
+              <p className="text-sm text-coolGray mb-4">BYOK: porta la tua API Key. Zero costi server.</p>
+              <ul className="text-sm text-coolGray space-y-2 mb-6">
+                <li>Chiave solo in localStorage</li>
+                <li>Genera Gratis (Gemini testo)</li>
+                <li>Non salva in Progetti (solo Premium)</li>
+              </ul>
+              <button
+                type="button"
+                disabled
+                className="w-full rounded-xl bg-surface2 border border-white/[0.10] text-coolGray font-semibold py-3 cursor-not-allowed opacity-80"
+              >
+                Già in utilizzo
+              </button>
+            </div>
+
             {/* Starter */}
             <div className="glass-card rounded-3xl p-8 hover:-translate-y-1 transition relative">
               <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-surface3 text-coolGray px-2.5 py-1 rounded-full">Starter</span>
               <h3 className="font-display text-2xl font-bold mb-1">€1,50<span className="text-sm text-coolGray font-normal">/settimana</span></h3>
-              <p className="text-sm text-coolGray mb-4">Equivalente a <strong className="text-textMain">€6 una tantum</strong> per 10 video</p>
+              <p className="text-sm text-coolGray mb-4">Equivalente a <strong className="text-textMain">€6 una tantum</strong> per 10 crediti</p>
               <ul className="text-sm text-coolGray space-y-2 mb-6">
-                <li> 10 video generati</li>
-                <li> Risoluzione fino a 1080p</li>
-                <li> Supporto prioritario</li>
+                <li>10 video generati</li>
+                <li>Risoluzione fino a 1080p</li>
+                <li>Supporto prioritario</li>
               </ul>
-              <button
-                onClick={() => { if (!session) { setShowLogin(true); return; } trackCheckout('starter'); alert('Checkout Stripe in arrivo!'); }}
-                className="w-full rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-semibold py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition"
-              >
-                Acquista Starter
-              </button>
+              {(() => {
+                const btn = etichettaPiano('starter');
+                return (
+                  <button
+                    type="button"
+                    disabled={btn.disabled || inviando}
+                    onClick={() => { if (!btn.disabled) void avviaCheckout('starter'); }}
+                    className="w-full rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-semibold py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {btn.label}
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Pro */}
             <div className="glass-card rounded-3xl p-8 relative overflow-hidden ring-1 ring-amber/40 shadow-xl shadow-amber/10 hover:-translate-y-1 transition">
               <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-amber/20 text-amber px-2.5 py-1 rounded-full">Pro</span>
               <h3 className="font-display text-2xl font-bold mb-1">€3,75<span className="text-sm text-coolGray font-normal">/settimana</span></h3>
-              <p className="text-sm text-coolGray mb-4">Equivalente a <strong className="text-textMain">€15 una tantum</strong> per 100 video</p>
+              <p className="text-sm text-coolGray mb-4">Equivalente a <strong className="text-textMain">€15 una tantum</strong> per 100 crediti</p>
               <ul className="text-sm text-coolGray space-y-2 mb-6">
-                <li> 100 video generati</li>
-                <li> Risoluzione fino a 4K</li>
-                <li> Audio generato incluso</li>
-                <li> Modelli premium</li>
+                <li>100 video generati</li>
+                <li>Risoluzione fino a 4K</li>
+                <li>Audio generato incluso</li>
+                <li>Modelli premium</li>
               </ul>
-              <button
-                onClick={() => { if (!session) { setShowLogin(true); return; } trackCheckout('pro'); alert('Checkout Stripe in arrivo!'); }}
-                className="w-full rounded-xl bg-gradient-to-r from-amber to-roseSoft text-white font-semibold py-3 shadow-lg shadow-amber/30 hover:shadow-amber/50 transition"
-              >
-                Acquista Pro
-              </button>
+              {(() => {
+                const btn = etichettaPiano('pro');
+                return (
+                  <button
+                    type="button"
+                    disabled={btn.disabled || inviando}
+                    onClick={() => { if (!btn.disabled) void avviaCheckout('pro'); }}
+                    className="w-full rounded-xl bg-gradient-to-r from-amber to-roseSoft text-white font-semibold py-3 shadow-lg shadow-amber/30 hover:shadow-amber/50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {btn.label}
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
           {/* Fiducia */}
           <div className="flex flex-wrap items-center justify-center gap-6 mt-6 text-xs text-coolGray">
-            <span> Pagamento sicuro Stripe</span>
-            <span> Visa · Mastercard · PayPal</span>
+            <span>Pagamento sicuro Stripe</span>
+            <span>Visa · Mastercard · PayPal</span>
             <span className="flex items-center gap-1">
-               <strong className="text-textMain">4.8/5</strong> su Trustpilot
+              <strong className="text-textMain">4.8/5</strong> su Trustpilot
             </span>
           </div>
+        </section>
         </section>
       </div>
     );
@@ -711,8 +786,8 @@ export default function Home() {
     const filtri: { id: FiltroGalleria; label: string; icona: string }[] = [
       { id: 'tutti', label: 'Tutti', icona: '' },
       { id: 'rendering', label: 'In Rendering', icona: '' },
-      { id: 'completati', label: 'Completati', icona: '' },
-      { id: 'falliti', label: 'Falliti', icona: '' },
+      { id: 'completato', label: 'Completati', icona: '' },
+      { id: 'fallito', label: 'Falliti', icona: '' },
     ];
 
     return (

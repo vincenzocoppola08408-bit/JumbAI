@@ -115,27 +115,50 @@ export default function LandingPage() {
               <li>Zero logging lato server</li>
               <li>Costi server = €0</li>
             </ul>
+            <button
+              type="button"
+              disabled
+              className="w-full rounded-xl bg-surface2 border border-white/[0.10] text-coolGray font-semibold py-3 cursor-not-allowed opacity-80"
+            >
+              Già in utilizzo
+            </button>
           </article>
           <article className="glass-card rounded-3xl p-8 lg:p-10 relative overflow-hidden ring-1 ring-violet/40 shadow-xl shadow-violet/10">
             <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-violet/20 text-violetSoft px-2.5 py-1 rounded-full">Premium</span>
             <h3 className="font-display text-xl font-bold mb-3">Piano Starter</h3>
             <p className="text-3xl font-display font-bold mb-2">€1,50 <span className="text-lg font-normal text-coolGray">/settimana</span></p>
-            <p className="text-sm text-coolGray mb-6">Equivalente a <strong>€6 una tantum</strong> per 10 video. Pagamento tramite Stripe.</p>
+            <p className="text-sm text-coolGray mb-6">Equivalente a <strong>€6 una tantum</strong> per 10 crediti. Pagamento tramite Stripe.</p>
             <ul className="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
               <li>10 video generati, 1080p</li>
               <li>Webhooks Fal.ai inclusi</li>
               <li>Margine netto: ~€2</li>
             </ul>
+            <button
+              type="button"
+              onClick={() => { setLoading(true); signInWithGoogle().catch((e) => { console.error(e); setLoading(false); alert(e?.message || 'Login Google non disponibile. Riprova tra poco.'); }); }}
+              disabled={loading}
+              className="w-full rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-semibold py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition disabled:opacity-50"
+            >
+              {loading ? 'Caricamento...' : 'Acquista Starter'}
+            </button>
           </article>
           <article className="glass-card rounded-3xl p-8 lg:p-10 hover:-translate-y-1 transition">
             <h3 className="font-display text-xl font-bold mb-3">Piano Pro</h3>
             <p className="text-3xl font-display font-bold mb-2">€3,75 <span className="text-lg font-normal text-coolGray">/settimana</span></p>
-            <p className="text-sm text-coolGray mb-6">Equivalente a <strong>€15 una tantum</strong> per 100 video.</p>
+            <p className="text-sm text-coolGray mb-6">Equivalente a <strong>€15 una tantum</strong> per 100 crediti.</p>
             <ul className="text-sm text-coolGray space-y-2 mb-6 list-disc list-inside">
               <li>100 video, fino a 4K</li>
               <li>Modelli Hunyuan Pro</li>
               <li>Margine netto: ~€11</li>
             </ul>
+            <button
+              type="button"
+              onClick={() => { setLoading(true); signInWithGoogle().catch((e) => { console.error(e); setLoading(false); alert(e?.message || 'Login Google non disponibile. Riprova tra poco.'); }); }}
+              disabled={loading}
+              className="w-full rounded-xl bg-gradient-to-r from-amber to-roseSoft text-white font-semibold py-3 shadow-lg shadow-amber/30 hover:shadow-amber/50 transition disabled:opacity-50"
+            >
+              {loading ? 'Caricamento...' : 'Acquista Pro'}
+            </button>
           </article>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-6 mt-6 text-xs text-coolGray">

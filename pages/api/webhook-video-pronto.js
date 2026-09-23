@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     }
 
     // Payload intermedio (status update) — non contiene ancora il video
-    if (!videoUrl && payload.status === 'IN_QUEUE' || payload.status === 'IN_PROGRESS') {
+    if (!videoUrl && (payload.status === 'IN_QUEUE' || payload.status === 'IN_PROGRESS')) {
       return res.status(200).json({ status: 'ok', received: false, progress: payload.status });
     }
 
