@@ -1,3 +1,4 @@
+/* encoding-safe-unicode-v2 */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase-client';
@@ -211,7 +212,7 @@ export default function Home() {
   function salvaByok() {
     if (!byokKey.trim()) return alert('Inserisci la chiave');
     localStorage.setItem('jumbai_byok_key', byokKey.trim());
-    alert('✅ Chiave BYOK salvata localmente. Il server non la vede mai.');
+    alert('\u2705 Chiave BYOK salvata localmente. Il server non la vede mai.');
   }
 
   // ============ FILE IMMAGINE ============
@@ -242,9 +243,9 @@ export default function Home() {
       );
       const data = await resp.json();
       console.log('BYOK response:', data);
-      alert('✅ Richiesta BYOK completata! Verifica la console per la risposta.');
+      alert('\u2705 Richiesta BYOK completata! Verifica la console per la risposta.');
     } catch (e: any) {
-      alert('❌ Errore BYOK: ' + e.message);
+      alert('\u274C Errore BYOK: ' + e.message);
     } finally {
       setInviando(false);
       setMessaggio('');
@@ -282,7 +283,7 @@ export default function Home() {
       });
       const data = await resp.json();
       if (resp.ok) {
-        setMessaggio('✅ ' + (data.message || 'Richiesta presa in carico!'));
+        setMessaggio('\u2705 ' + (data.message || 'Richiesta presa in carico!'));
         setPrompt('');
         setPromptNegativo('');
         setSeed('');
@@ -292,10 +293,10 @@ export default function Home() {
         // Aggiorna badge crediti dopo consumo Premium
         if (session?.user?.id) await caricaProfilo(session.user.id);
       } else {
-        alert('❌ ' + (data.error || 'Errore'));
+        alert('\u274C ' + (data.error || 'Errore'));
       }
     } catch (e: any) {
-      alert('❌ Errore: ' + e.message);
+      alert('\u274C Errore: ' + e.message);
     } finally {
       setInviando(false);
       setTimeout(() => setMessaggio(''), 5000);
@@ -326,10 +327,10 @@ export default function Home() {
   // ============ RENDER SIDEBAR ============
   function renderSidebar() {
     const voci: { id: Sezione; icona: string; label: string }[] = [
-      { id: 'casa', icona: '🏠', label: 'Casa' },
-      { id: 'progetti', icona: '🎬', label: 'Progetti' },
-      { id: 'integrazioni', icona: '🔗', label: 'Integrazioni' },
-      { id: 'sviluppatori', icona: '⚙️', label: 'Sviluppatori' },
+      { id: 'casa', icona: '\uD83C\uDFE0', label: 'Casa' },
+      { id: 'progetti', icona: '\uD83C\uDFAC', label: 'Progetti' },
+      { id: 'integrazioni', icona: '\uD83D\uDD17', label: 'Integrazioni' },
+      { id: 'sviluppatori', icona: '\u2699\uFE0F', label: 'Sviluppatori' },
     ];
 
     return (
@@ -360,12 +361,12 @@ export default function Home() {
         <div className="px-4 py-4 border-t border-white/[0.06]">
           {session ? (
             <div className="badge-crediti border-violet/30 bg-violet/10 text-violetSoft">
-              <span className="text-sm">⭐</span>
+              <span className="text-sm">{'\u2B50'}</span>
               <span>Premium · {creditiUtente} crediti</span>
             </div>
           ) : (
             <div className="badge-crediti border-amber/30 bg-amber/10 text-amber">
-              <span>🔑</span>
+              <span>{'\uD83D\uDD11'}</span>
               <span>Free (BYOK)</span>
             </div>
           )}
@@ -414,10 +415,10 @@ export default function Home() {
           {/* Tabs Input */}
           <div className="flex flex-wrap gap-2 mb-6">
             {([
-              { id: 'testo' as TabInput, label: '📝 Testo in Video' },
-              { id: 'immagine' as TabInput, label: '🖼️ Immagine in Video' },
-              { id: 'frame' as TabInput, label: '🎞️ Primo/Ultimo Frame' },
-              { id: 'multiple' as TabInput, label: '📸 Immagini Multiple' },
+              { id: 'testo' as TabInput, label: '\uD83D\uDCDD Testo in Video' },
+              { id: 'immagine' as TabInput, label: '\uD83D\uDDBC\uFE0F Immagine in Video' },
+              { id: 'frame' as TabInput, label: '\uD83C\uDF9E\uFE0F Primo/Ultimo Frame' },
+              { id: 'multiple' as TabInput, label: '\uD83D\uDCF8 Immagini Multiple' },
             ]).map((tab) => (
               <button
                 key={tab.id}
@@ -444,9 +445,9 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <span className="text-4xl">📤</span>
+                    <span className="text-4xl">{'\uD83D\uDCE4'}</span>
                     <p className="text-sm text-coolGray">Trascina o clicca per caricare un&apos;immagine</p>
-                    <p className="text-xs text-white/30">PNG, JPG, WEBP — Max 10MB</p>
+                    <p className="text-xs text-white/30">{'PNG, JPG, WEBP \u2014 Max 10MB'}</p>
                   </div>
                 )}
               </div>
@@ -466,7 +467,7 @@ export default function Home() {
             {/* Template prompt chips (ADD-4) */}
             <div className="flex flex-wrap gap-2 mt-3">
               {[
-                { label: 'Città', text: 'Un gatto che vola sopra una città al tramonto, nuvole dorate, camera panoramica lenta, atmosfera cinematografica' },
+                { label: 'Citt\u00E0', text: 'Un gatto che vola sopra una citt\u00E0 al tramonto, nuvole dorate, camera panoramica lenta, atmosfera cinematografica' },
                 { label: 'Natura', text: 'Tramonto dorato sulle Alpi, laghetto alpino che riflette le nuvole, camera panoramica lenta, luce naturale' },
                 { label: 'Moda', text: 'Modella in passerella al rallentatore, abito di seta che ondeggia, luci morbide da studio, inquadratura elegante' },
                 { label: 'Prodotto', text: 'Una sneaker premium su piedistallo di vetro, rotazione lenta a 360 gradi, riflessi metallici, sfondo scuro minimal' },
@@ -511,7 +512,7 @@ export default function Home() {
               {session ? (
                 <>
                   <option value="hunyuan-video">Hunyuan Video (Standard)</option>
-                  <option value="hunyuan-video-pro">Hunyuan Video Pro ⚡</option>
+                  <option value="hunyuan-video-pro">{'Hunyuan Video Pro \u26A1'}</option>
                   <option value="minimax-video">MiniMax Video</option>
                   <option value="cogvideo">CogVideoX</option>
                 </>
@@ -531,7 +532,7 @@ export default function Home() {
               onClick={() => setShowAvanzate(!showAvanzate)}
               className="flex items-center gap-2 text-sm text-coolGray hover:text-textMain transition"
             >
-              <span className={`transition ${showAvanzate ? 'rotate-90' : ''}`}>▶</span>
+              <span className={`transition ${showAvanzate ? 'rotate-90' : ''}`}>{'\u25B6'}</span>
               Impostazioni Avanzate
             </button>
 
@@ -541,9 +542,9 @@ export default function Home() {
                 <div>
                   <label className="block text-sm font-medium text-coolGray mb-2">Durata</label>
                   <select value={durata} onChange={(e) => setDurata(Number(e.target.value))} className="select-jumbai">
-                    <option value={4}>4 secondi ({session ? '1 🪙' : 'gratuito'})</option>
-                    <option value={6}>6 secondi ({session ? '1 🪙' : 'gratuito'})</option>
-                    <option value={8}>8 secondi ({session ? '2 🪙' : 'Premium only'})</option>
+                    <option value={4}>4 secondi ({session ? '1 \uD83E\uDE99' : 'gratuito'})</option>
+                    <option value={6}>6 secondi ({session ? '1 \uD83E\uDE99' : 'gratuito'})</option>
+                    <option value={8}>8 secondi ({session ? '2 \uD83E\uDE99' : 'Premium only'})</option>
                   </select>
                 </div>
 
@@ -562,8 +563,8 @@ export default function Home() {
                   <div>
                     <label className="block text-sm font-medium text-coolGray mb-2">Formato (aspect ratio)</label>
                     <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="select-jumbai">
-                      <option value="16:9">16:9 — Orizzontale</option>
-                      <option value="9:16">9:16 — Verticale (Reels/Stories)</option>
+                      <option value="16:9">{'16:9 \u2014 Orizzontale'}</option>
+                      <option value="9:16">{'9:16 \u2014 Verticale (Reels/Stories)'}</option>
                     </select>
                   </div>
                 )}
@@ -623,14 +624,14 @@ export default function Home() {
               disabled={inviando}
               className="rounded-xl bg-surface2 border border-white/[0.10] text-textMain font-semibold py-3.5 hover:bg-surface3 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {inviando ? '⏳' : '🆓'} Genera Gratis <span className="text-xs text-coolGray">BYOK</span>
+              {inviando ? '\u23F3' : '\uD83C\uDD93'} Genera Gratis <span className="text-xs text-coolGray">BYOK</span>
             </button>
             <button
               onClick={eseguiPremium}
               disabled={inviando}
               className="rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold py-3.5 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {inviando ? '⏳' : '⚡'} Genera Premium <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-md">{costoCrediti} 🪙</span>
+              {inviando ? '\u23F3' : '\u26A1'} Genera Premium <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-md">{costoCrediti} 🪙</span>
             </button>
           </div>
 
@@ -649,19 +650,19 @@ export default function Home() {
             <h2 className="font-display text-3xl lg:text-4xl font-bold tracking-tight">
               Scegli il tuo <span className="gradient-text">Piano</span>
             </h2>
-            <p className="mt-2 text-sm text-coolGray">Psicologia settimanale: prezzi che sembrano un caffè. Annulla quando vuoi.</p>
+            <p className="mt-2 text-sm text-coolGray">{'Psicologia settimanale: prezzi che sembrano un caff\u00E8. Annulla quando vuoi.'}</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {/* Starter */}
             <div className="glass-card rounded-3xl p-8 hover:-translate-y-1 transition relative">
               <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-surface3 text-coolGray px-2.5 py-1 rounded-full">Starter</span>
-              <h3 className="font-display text-2xl font-bold mb-1">€1,50<span className="text-sm text-coolGray font-normal">/settimana</span></h3>
-              <p className="text-sm text-coolGray mb-4">Equivalente a <strong className="text-textMain">€6 una tantum</strong> per 10 video</p>
+              <h3 className="font-display text-2xl font-bold mb-1">{'\u20AC1,50'}<span className="text-sm text-coolGray font-normal">/settimana</span></h3>
+              <p className="text-sm text-coolGray mb-4">Equivalente a <strong className="text-textMain">{'\u20AC6 una tantum'}</strong> per 10 video</p>
               <ul className="text-sm text-coolGray space-y-2 mb-6">
-                <li>✅ 10 video generati</li>
-                <li>✅ Risoluzione fino a 1080p</li>
-                <li>✅ Supporto prioritario</li>
+                <li>{'\u2705 10 video generati'}</li>
+                <li>{'\u2705 Risoluzione fino a 1080p'}</li>
+                <li>{'\u2705 Supporto prioritario'}</li>
               </ul>
               <button
                 onClick={() => { if (!session) { setShowLogin(true); return; } trackCheckout('starter'); alert('Checkout Stripe in arrivo!'); }}
@@ -674,13 +675,13 @@ export default function Home() {
             {/* Pro */}
             <div className="glass-card rounded-3xl p-8 relative overflow-hidden ring-1 ring-amber/40 shadow-xl shadow-amber/10 hover:-translate-y-1 transition">
               <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest bg-amber/20 text-amber px-2.5 py-1 rounded-full">Pro</span>
-              <h3 className="font-display text-2xl font-bold mb-1">€3,75<span className="text-sm text-coolGray font-normal">/settimana</span></h3>
-              <p className="text-sm text-coolGray mb-4">Equivalente a <strong className="text-textMain">€15 una tantum</strong> per 100 video</p>
+              <h3 className="font-display text-2xl font-bold mb-1">{'\u20AC3,75'}<span className="text-sm text-coolGray font-normal">/settimana</span></h3>
+              <p className="text-sm text-coolGray mb-4">Equivalente a <strong className="text-textMain">{'\u20AC15 una tantum'}</strong> per 100 video</p>
               <ul className="text-sm text-coolGray space-y-2 mb-6">
-                <li>✅ 100 video generati</li>
-                <li>✅ Risoluzione fino a 4K</li>
-                <li>✅ Audio generato incluso</li>
-                <li>✅ Modelli premium</li>
+                <li>{'\u2705 100 video generati'}</li>
+                <li>{'\u2705 Risoluzione fino a 4K'}</li>
+                <li>{'\u2705 Audio generato incluso'}</li>
+                <li>{'\u2705 Modelli premium'}</li>
               </ul>
               <button
                 onClick={() => { if (!session) { setShowLogin(true); return; } trackCheckout('pro'); alert('Checkout Stripe in arrivo!'); }}
@@ -693,10 +694,10 @@ export default function Home() {
 
           {/* Fiducia */}
           <div className="flex flex-wrap items-center justify-center gap-6 mt-6 text-xs text-coolGray">
-            <span>🔒 Pagamento sicuro Stripe</span>
-            <span>💳 Visa · Mastercard · PayPal</span>
-            <span className="flex items-center gap-1">
-              ⭐⭐⭐⭐⭐ <strong className="text-textMain">4.8/5</strong> su Trustpilot
+            <span>{'\uD83D\uDD12 Pagamento sicuro Stripe'}</span>
+            <span>{'\uD83D\uDCB3 Visa \u00B7 Mastercard \u00B7 PayPal'}</span>
+            <span className="flex items-center gap-1">{'
+              \u2B50\u2B50\u2B50\u2B50\u2B50 '}<strong className="text-textMain">4.8/5</strong> su Trustpilot
             </span>
           </div>
         </section>
@@ -707,19 +708,19 @@ export default function Home() {
   // ============ RENDER PROGETTI (Galleria) ============
   function renderProgetti() {
     const filtri: { id: FiltroGalleria; label: string; icona: string }[] = [
-      { id: 'tutti', label: 'Tutti', icona: '📁' },
-      { id: 'rendering', label: 'In Rendering', icona: '⏳' },
-      { id: 'completati', label: 'Completati', icona: '✅' },
-      { id: 'falliti', label: 'Falliti', icona: '❌' },
+      { id: 'tutti', label: 'Tutti', icona: '\uD83D\uDCC1' },
+      { id: 'rendering', label: 'In Rendering', icona: '\u23F3' },
+      { id: 'completati', label: 'Completati', icona: '\u2705' },
+      { id: 'falliti', label: 'Falliti', icona: '\u274C' },
     ];
 
     return (
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-display text-3xl lg:text-4xl font-bold tracking-tight">I tuoi Progetti</h2>
-          <button onClick={caricaVideo} className="text-sm font-medium text-violetSoft hover:text-white transition">
-            🔄 Aggiorna
-          </button>
+          <button onClick={caricaVideo} className="text-sm font-medium text-violetSoft hover:text-white transition">{'
+            \uD83D\uDD04 Aggiorna
+          '}</button>
         </div>
 
         {/* Filtri */}
@@ -738,7 +739,7 @@ export default function Home() {
         {/* Griglia */}
         {!session ? (
           <div className="glass-card rounded-3xl p-12 text-center">
-            <span className="text-5xl">🔒</span>
+            <span className="text-5xl">{'\uD83D\uDD12'}</span>
             <p className="mt-4 text-coolGray">Accedi per vedere i tuoi progetti.</p>
             <button onClick={() => setShowLogin(true)} className="mt-4 rounded-xl bg-violet text-white font-semibold px-6 py-2.5 hover:bg-violet/90 transition">
               Accedi
@@ -746,7 +747,7 @@ export default function Home() {
           </div>
         ) : videoFiltrati.length === 0 ? (
           <div className="glass-card rounded-3xl p-12 text-center">
-            <span className="text-5xl">🎬</span>
+            <span className="text-5xl">{'\uD83C\uDFAC'}</span>
             <p className="mt-4 text-coolGray">Nessun video trovato in questa categoria.</p>
             <p className="text-xs text-coolGray mt-1">Genera il primo dalla sezione Casa!</p>
           </div>
@@ -757,19 +758,19 @@ export default function Home() {
                 <div className="relative bg-ink2 aspect-video flex items-center justify-center overflow-hidden">
                   {/* Status badge */}
                   {video.stato === 'rendering' && (
-                    <span className="status-badge bg-amber/20 text-amber border border-amber/30">
-                      ⏳ In Rendering
-                    </span>
+                    <span className="status-badge bg-amber/20 text-amber border border-amber/30">{'
+                      \u23F3 In Rendering
+                    '}</span>
                   )}
                   {video.stato === 'completato' && (
-                    <span className="status-badge bg-emerald/20 text-emerald border border-emerald/30">
-                      ✅ Completato
-                    </span>
+                    <span className="status-badge bg-emerald/20 text-emerald border border-emerald/30">{'
+                      \u2705 Completato
+                    '}</span>
                   )}
                   {video.stato === 'fallito' && (
-                    <span className="status-badge bg-red/20 text-red-400 border border-red/30">
-                      ❌ Fallito
-                    </span>
+                    <span className="status-badge bg-red/20 text-red-400 border border-red/30">{'
+                      \u274C Fallito
+                    '}</span>
                   )}
 
                   {video.stato === 'rendering' ? (
@@ -799,7 +800,7 @@ export default function Home() {
                     </>
                   ) : video.stato === 'fallito' ? (
                     <div className="text-center px-4">
-                      <span className="text-3xl">❌</span>
+                      <span className="text-3xl">{'\u274C'}</span>
                       <p className="text-xs text-red-400 mt-1">{video.errore || 'Errore sconosciuto'}</p>
                     </div>
                   ) : (
@@ -845,10 +846,10 @@ export default function Home() {
   // ============ RENDER INTEGRAZIONI ============
   function renderIntegrazioni() {
     const integrations = [
-      { name: 'Discord', icon: '💬', desc: 'Notifiche automatiche quando un video è pronto.', connected: false },
-      { name: 'X (Twitter)', icon: '🐦', desc: 'Pubblica i tuoi video direttamente su X.', connected: false },
-      { name: 'YouTube', icon: '▶️', desc: 'Carica automaticamente su YouTube.', connected: false },
-      { name: 'Telegram', icon: '✈️', desc: 'Ricevi i video su Telegram.', connected: false },
+      { name: 'Discord', icon: '\uD83D\uDCAC', desc: 'Notifiche automatiche quando un video \u00E8 pronto.', connected: false },
+      { name: 'X (Twitter)', icon: '\uD83D\uDC26', desc: 'Pubblica i tuoi video direttamente su X.', connected: false },
+      { name: 'YouTube', icon: '\u25B6\uFE0F', desc: 'Carica automaticamente su YouTube.', connected: false },
+      { name: 'Telegram', icon: '\u2708\uFE0F', desc: 'Ricevi i video su Telegram.', connected: false },
     ];
 
     return (
@@ -895,7 +896,7 @@ export default function Home() {
     return (
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
-          <h2 className="font-display text-3xl lg:text-4xl font-bold tracking-tight">🔑 Sviluppatori — BYOK</h2>
+          <h2 className="font-display text-3xl lg:text-4xl font-bold tracking-tight">{'\uD83D\uDD11 Sviluppatori \u2014 BYOK'}</h2>
           <p className="text-sm text-coolGray mt-1">
             Porta la tua chiave (Bring Your Own Key). La chiave resta <strong>solo</strong> nel tuo browser.
           </p>
@@ -920,7 +921,7 @@ export default function Home() {
           </div>
 
           <div className="rounded-2xl bg-ink border border-white/[0.08] p-5">
-            <h3 className="font-display text-base font-semibold mb-2">📘 Come ottenere una chiave</h3>
+            <h3 className="font-display text-base font-semibold mb-2">{'\uD83D\uDCD8 Come ottenere una chiave'}</h3>
             <ol className="text-sm text-coolGray space-y-2 list-decimal list-inside">
               <li>Vai su <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-violetSoft hover:underline">Google AI Studio</a> e genera una API Key gratuita</li>
               <li>Oppure usa <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer" className="text-violetSoft hover:underline">HuggingFace Tokens</a></li>
@@ -930,19 +931,19 @@ export default function Home() {
           </div>
 
           <div className="rounded-2xl bg-ink border border-white/[0.08] p-5">
-            <h3 className="font-display text-base font-semibold mb-2">🔒 Privacy & Sicurezza</h3>
+            <h3 className="font-display text-base font-semibold mb-2">{'\uD83D\uDD12 Privacy & Sicurezza'}</h3>
             <ul className="text-sm text-coolGray space-y-2 list-disc list-inside">
-              <li>La chiave è archiviata SOLO nel localStorage del tuo browser</li>
+              <li>{'La chiave \u00E8 archiviata SOLO nel localStorage del tuo browser'}</li>
               <li>Le chiamate partono direttamente dal tuo browser all&apos;API Google</li>
-              <li>Nessun proxy intermedio — zero logging lato server</li>
-              <li>Costo server per il gestore: <strong>€0</strong></li>
+              <li>{'Nessun proxy intermedio \u2014 zero logging lato server'}</li>
+              <li>Costo server per il gestore: <strong>{'\u20AC0'}</strong></li>
             </ul>
           </div>
         </div>
 
         {session && (
           <div className="mt-6 glass-card rounded-3xl p-8">
-            <h3 className="font-display text-xl font-bold mb-4">📊 La tua Dashboard</h3>
+            <h3 className="font-display text-xl font-bold mb-4">{'\uD83D\uDCCA La tua Dashboard'}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="rounded-2xl bg-ink border border-white/[0.08] p-4 text-center">
                 <p className="text-2xl font-bold tabular-nums">{creditiUtente}</p>
@@ -950,15 +951,15 @@ export default function Home() {
               </div>
               <div className="rounded-2xl bg-ink border border-white/[0.08] p-4 text-center">
                 <p className="text-2xl font-bold">{videos.length}</p>
-                <p className="text-xs text-coolGray">🎬 Video Totali</p>
+                <p className="text-xs text-coolGray">{'\uD83C\uDFAC Video Totali'}</p>
               </div>
               <div className="rounded-2xl bg-ink border border-white/[0.08] p-4 text-center">
                 <p className="text-2xl font-bold text-emerald">{videos.filter(v => v.stato === 'completato').length}</p>
-                <p className="text-xs text-coolGray">✅ Completati</p>
+                <p className="text-xs text-coolGray">{'\u2705 Completati'}</p>
               </div>
               <div className="rounded-2xl bg-ink border border-white/[0.08] p-4 text-center">
                 <p className="text-2xl font-bold text-amber">{videos.filter(v => v.stato === 'rendering').length}</p>
-                <p className="text-xs text-coolGray">⏳ In Coda</p>
+                <p className="text-xs text-coolGray">{'\u23F3 In Coda'}</p>
               </div>
             </div>
           </div>
@@ -1006,7 +1007,7 @@ export default function Home() {
             <button onClick={() => {
               void signInWithGoogle().catch((e) => { console.error(e); alert(e?.message || 'Login Google non disponibile'); });
             }} className="w-full rounded-xl bg-white text-ink font-bold py-3 shadow-lg hover:bg-gray-100 transition flex items-center justify-center gap-2 mb-3">
-              <span>🔵</span> Continua con Google
+              <span>{'\uD83D\uDD35'}</span> Continua con Google
             </button>
 
             <div className="flex items-center gap-3 text-xs text-coolGray my-2">
@@ -1018,7 +1019,7 @@ export default function Home() {
             </button>
 
             <p className="text-center text-sm text-coolGray">
-              {isRegistrazione ? 'Hai già un account?' : 'Non hai un account?'}{' '}
+              {isRegistrazione ? 'Hai gi\u00E0 un account?' : 'Non hai un account?'}{' '}
               <button onClick={() => setIsRegistrazione(!isRegistrazione)} className="text-violetSoft hover:underline">
                 {isRegistrazione ? 'Accedi' : 'Registrati'}
               </button>
@@ -1065,10 +1066,10 @@ export default function Home() {
         <header className="sticky top-0 z-40 h-16 glass border-b border-white/[0.05] flex items-center justify-between px-8">
           <div>
             <h1 className="font-display text-lg font-bold">
-              {sezione === 'casa' && '🏠 Casa'}
-              {sezione === 'progetti' && '🎬 Progetti'}
-              {sezione === 'integrazioni' && '🔗 Integrazioni'}
-              {sezione === 'sviluppatori' && '⚙️ Sviluppatori'}
+              {sezione === 'casa' && '\uD83C\uDFE0 Casa'}
+              {sezione === 'progetti' && '\uD83C\uDFAC Progetti'}
+              {sezione === 'integrazioni' && '\uD83D\uDD17 Integrazioni'}
+              {sezione === 'sviluppatori' && '\u2699\uFE0F Sviluppatori'}
             </h1>
           </div>
 
@@ -1076,12 +1077,12 @@ export default function Home() {
           <div className="flex items-center gap-3">
             {session ? (
               <div className="badge-crediti border-violet/30 bg-violet/10 text-violetSoft text-xs">
-                <span>⭐</span>
+                <span>{'\u2B50'}</span>
                 <span>Crediti: <strong className="tabular-nums">{creditiUtente}</strong></span>
               </div>
             ) : (
               <div className="badge-crediti border-amber/30 bg-amber/10 text-amber text-xs">
-                <span>🔑</span>
+                <span>{'\uD83D\uDD11'}</span>
                 <span>Piano: Free (BYOK)</span>
               </div>
             )}
@@ -1098,7 +1099,7 @@ export default function Home() {
 
         {/* Footer */}
         <footer className="border-t border-white/[0.08] py-8 text-center text-coolGray text-xs">
-          <p>JumbAI 2.0 — AI Video Generator SaaS. Architettura BYOK + Premium. Zero costi GPU.</p>
+          <p>{'JumbAI 2.0 \u2014 AI Video Generator SaaS. Architettura BYOK + Premium. Zero costi GPU.'}</p>
         </footer>
       </div>
 
@@ -1138,8 +1139,8 @@ export default function Home() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-violetSoft">Passo 2 di 3</p>
                 <h3 className="font-display text-2xl font-bold">Crediti e piani</h3>
                 <p className="text-sm text-coolGray leading-relaxed">
-                  Il badge in alto mostra i tuoi <strong className="text-textMain">crediti</strong> Premium. I pacchetti Starter (~€6 / 10 video) e Pro (~€15 / 100 video) ricaricano il saldo; Free resta BYOK a €0 lato server.
-                </p>
+                  Il badge in alto mostra i tuoi <strong className="text-textMain">crediti</strong>{' Premium. I pacchetti Starter (~\u20AC6 / 10 video) e Pro (~\u20AC15 / 100 video) ricaricano il saldo; Free resta BYOK a \u20AC0 lato server.
+                '}</p>
               </div>
             )}
             {onboardingStep === 2 && (
@@ -1147,8 +1148,8 @@ export default function Home() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-violetSoft">Passo 3 di 3</p>
                 <h3 className="font-display text-2xl font-bold">Trovare i progetti</h3>
                 <p className="text-sm text-coolGray leading-relaxed">
-                  Nella sidebar apri <strong className="text-textMain">Progetti</strong> per vedere i video in rendering o completati. Da lì puoi riprodurre e scaricare gli MP4 pronti.
-                </p>
+                  Nella sidebar apri <strong className="text-textMain">Progetti</strong>{' per vedere i video in rendering o completati. Da l\u00EC puoi riprodurre e scaricare gli MP4 pronti.
+                '}</p>
               </div>
             )}
             <div className="mt-8 flex items-center justify-between gap-3">
