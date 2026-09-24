@@ -2,11 +2,13 @@
 const nextConfig = {
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: '**.aliyuncs.com' },
+      { protocol: 'https', hostname: 'dashscope-intl.aliyuncs.com' },
+      { protocol: 'https', hostname: 'dashscope.aliyuncs.com' },
       { protocol: 'https', hostname: 'fal.media' },
-      { protocol: 'https', hostname: '**.fal.ai' },
+      { protocol: 'https', hostname: 'fal.ai' },
       { protocol: 'https', hostname: 'storage.googleapis.com' },
-      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: 'supabase.co' },
+      { protocol: 'https', hostname: 'picsum.photos' },
     ],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',

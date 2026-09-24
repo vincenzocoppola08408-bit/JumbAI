@@ -122,7 +122,16 @@ export default async function handler(req, res) {
       .eq('crediti', utente.crediti);
     if (updateError) console.error('Errore addebito crediti Premium:', updateError);
 
-    const taskId = providerData?.taskId || providerData?.request_id || providerData?.id || null;
+    // Fal.ai response has request_id at root level; check all common keys
+    const requestId =
+      providerData?.request_id ||
+      providerData?.taskId ||
+      providerData?.id ||
+      providerData?.fal?.request_id ||
+      null;
+
+    // Use size from provider if available, else default to 1024*1024
+    const imageSize = size || providerData?.size || '1024*1024';
 
     const { data: nuovo, error: insertError } = await supabaseAdmin
       .from('immagini_generate')
@@ -133,9 +142,9 @@ export default async function handler(req, res) {
         seed: seed || null,
         modello: modello,
         categoria,
-        size: size || '1024*1024',
+        size: imageSize,
         stato: 'generazione',
-        request_id: taskId,
+        request_id: requestId,
         provider: modello === 'fal' || modello === 'fal-fast' ? 'fal' : 'wan',
       })
       .select('id')
@@ -149,7 +158,7 @@ export default async function handler(req, res) {
       status: 'In coda',
       provider: modello,
       image_id: nuovo?.id || null,
-      task_id: taskId,
+      task_id: requestId,
       crediti_rimasti: utente.crediti - costoCrediti,
       message: 'Richiesta presa in carico! Immagine in generazione.',
     });
