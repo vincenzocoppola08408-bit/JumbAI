@@ -1,9 +1,9 @@
 // ============================================================
-// /api/genera-premium — Generazione Video Premium (Fal.ai)
-// Free path is /api/genera-free (Wan/DashScope). Keep Fal here for Premium.
-// Anti-refund: debit + row ONLY after Fal accepts. Legacy video_generati columns.
+// /api/genera-premium — Generazione Immagine Premium (Fal.ai T2I)
+// Anti-refund: debit only after Fal accepts.
 // ============================================================
 import { supabaseAdmin } from '../../lib/supabase-admin';
+import { submitWanImage } from '../../lib/wan';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,25 +13,20 @@ export default async function handler(req, res) {
   const {
     userId,
     prompt,
-    modello = 'hunyuan-video',
-    durata_secondi = 4,
-    risoluzione = '720p',
-    aspect_ratio = null,
-    genera_audio = false,
-    ottimizza_prompt = false,
     prompt_negativo = '',
     seed = null,
-    tipo_input = 'testo',
-    immagine_base64 = null,
+    aspect_ratio = '1:1',
+    ottimizza_prompt = false,
+    modello = 'fal',
+    categoria = 'generale',
+    size = null,
   } = req.body || {};
 
-  // Validazione
   if (!userId || !prompt) {
     return res.status(400).json({ error: 'Parametri mancanti (userId, prompt).' });
   }
 
   try {
-    // 1. Verifica utente e crediti
     const { data: utente, error: dbError } = await supabaseAdmin
       .from('profili')
       .select('crediti')
@@ -42,125 +37,118 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Utente non trovato.' });
     }
 
-    // Calcola costo in crediti
-    const costoCrediti = durata_secondi <= 6 ? 1 : 2;
+    const costoCrediti = 2; // Premium costs 2 credits per image
     if (utente.crediti < costoCrediti) {
       return res.status(403).json({
         error: `Crediti insufficienti. Servono ${costoCrediti} crediti, ne hai ${utente.crediti}.`,
       });
     }
 
-    // NOTE: niente addebito/record prima che Fal accetti -> nessuno storno visibile.
-
-    // 4. Costruisci il payload per Fal.ai
-    // Mappa risoluzione a aspect_ratio
+    // Build Fal.ai payload
     const aspectRatioMap = {
-      '720p': '16:9',
-      '1080p': '16:9',
-      '4K': '16:9',
+      '1:1': '1:1',
+      '4:3': '4:3',
+      '3:4': '3:4',
+      '16:9': '16:9',
+      '9:16': '9:16',
+      '3:2': '3:2',
+      '2:3': '2:3',
     };
+    const finalAspectRatio = aspectRatioMap[aspect_ratio] || '1:1';
 
-    const aspectRatioFinale =
-      aspect_ratio === '9:16' || aspect_ratio === '16:9'
-        ? aspect_ratio
-        : (aspectRatioMap[risoluzione] || '16:9');
+    let providerAccepted = false;
+    let providerData = null;
 
-    const falBody = {
-      prompt: ottimizza_prompt
-        ? `${prompt}. Cinematic, high quality, detailed scene, smooth camera movement, professional lighting.`
-        : prompt,
-      ...(prompt_negativo && { negative_prompt: prompt_negativo }),
-      ...(seed !== null && { seed: Number(seed) }),
-      aspect_ratio: aspectRatioFinale,
-      duration_seconds: durata_secondi,
-      ...(genera_audio && { enable_audio: true }),
-      ...(immagine_base64 && {
-        image_url: String(immagine_base64).startsWith('data:')
-          ? String(immagine_base64)
-          : `data:image/png;base64,${immagine_base64}`,
-      }),
-      // user_data per il webhook
-      user_data: {
-        userId: userId,
-        promptUsato: prompt,
-      },
-    };
+    if (modello === 'fal' || modello === 'fal-fast') {
+      // Fal.ai T2I endpoint
+      const baseUrl = process.env.SITE_BASE_URL || `https://${process.env.VERCEL_URL || 'jumbai.vercel.app'}`;
+      const webhookUrl = `${baseUrl}/api/webhook-image-pronto?userId=${encodeURIComponent(userId)}&prompt=${encodeURIComponent(String(prompt).slice(0, 300))}`;
 
-    // 5. Webhook URL (DOVE Fal.ai ci risponde)
-    const baseUrl = process.env.SITE_BASE_URL || `https://${process.env.VERCEL_URL || 'jumbai.vercel.app'}`;
-    // Pass ids in query: Fal often does not echo custom user_data to the webhook
-    const webhookUrl = `${baseUrl}/api/webhook-video-pronto?userId=${encodeURIComponent(userId)}&prompt=${encodeURIComponent(String(prompt).slice(0, 300))}`;
+      const falBody = {
+        prompt: ottimizza_prompt
+          ? `${prompt}. High quality, detailed, sharp focus, professional photography, 8K, award winning.`
+          : prompt,
+        ...(prompt_negativo && { negative_prompt: prompt_negativo }),
+        ...(seed !== null && seed !== '' && { seed: Number(seed) }),
+        aspect_ratio: finalAspectRatio,
+        safety_checker: true,
+        user_data: { userId, promptUsato: prompt },
+      };
 
-    // 6. Determina endpoint Fal.ai in base al modello
-    let falEndpoint = 'https://queue.fal.run/fal-ai/hunyuan-video';
-    if (modello === 'hunyuan-video-pro') {
-      falEndpoint = 'https://queue.fal.run/fal-ai/hunyuan-video-pro';
-    } else if (modello === 'minimax-video') {
-      falEndpoint = 'https://queue.fal.run/fal-ai/minimax-video';
-    } else if (modello === 'cogvideo') {
-      falEndpoint = 'https://queue.fal.run/fal-ai/cogvideox';
+      const falRes = await fetch(
+        `https://queue.fal.run/fal-ai/fast-sdxl?fal_webhook=${encodeURIComponent(webhookUrl)}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Key ${process.env.FAL_AI_MASTER_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(falBody),
+        }
+      );
+
+      try { providerData = await falRes.json(); } catch {}
+      providerAccepted = falRes.ok;
+    } else {
+      // Fallback to Wan/DashScope
+      const wan = await submitWanImage({
+        prompt,
+        negativePrompt: prompt_negativo,
+        aspectRatio: finalAspectRatio,
+        seed,
+        promptExtend: Boolean(ottimizza_prompt),
+      });
+      providerAccepted = wan.ok;
+      providerData = wan;
     }
 
-    // 7. Invia a Fal.ai
-    const falRes = await fetch(
-      `${falEndpoint}?fal_webhook=${encodeURIComponent(webhookUrl)}`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Key ${process.env.FAL_AI_MASTER_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(falBody),
-      }
-    );
-
-    let falData = null;
-    try {
-      falData = await falRes.json();
-    } catch {}
-
-    if (!falRes.ok) {
-      // Nessun credito scalato e nessun record creato: niente da stornare.
-      console.error('Fal.ai error:', falRes.status, falData);
-      const falDetail = falData
-        ? (falData.detail || falData.message || falData.error || falData)
-        : null;
+    if (!providerAccepted) {
+      console.error('Provider rejected:', providerData);
       return res.status(502).json({
-        error: 'Impossibile inviare la richiesta a Fal.ai.',
-        falStatus: falRes.status,
-        falEndpoint,
-        falKeyPresent: Boolean(process.env.FAL_AI_MASTER_KEY),
-        falDetail: typeof falDetail === 'string' ? falDetail.slice(0, 800) : JSON.stringify(falDetail || '').slice(0, 800),
+        error: 'Impossibile inviare la richiesta al provider.',
+        providerDetail: providerData?.message || providerData?.error || 'Provider rejected',
         crediti_rimasti: utente.crediti,
       });
     }
 
-    // Fal ha accettato: ora consumo reale -> scala crediti e crea record "pending"
+    // Provider accepted → debit + pending row
     const { error: updateError } = await supabaseAdmin
       .from('profili')
       .update({ crediti: utente.crediti - costoCrediti })
       .eq('id', userId)
       .eq('crediti', utente.crediti);
-    if (updateError) console.error('Errore addebito crediti post-Fal:', updateError);
+    if (updateError) console.error('Errore addebito crediti Premium:', updateError);
 
-    const { data: nuovoVideo, error: insertError } = await supabaseAdmin
-      .from('video_generati')
-      .insert({ user_id: userId, prompt_usato: prompt, url_video: 'pending' })
+    const taskId = providerData?.taskId || providerData?.request_id || providerData?.id || null;
+
+    const { data: nuovo, error: insertError } = await supabaseAdmin
+      .from('immagini_generate')
+      .insert({
+        user_id: userId,
+        prompt,
+        prompt_negativo,
+        seed: seed || null,
+        modello: modello,
+        categoria,
+        size: size || '1024*1024',
+        stato: 'generazione',
+        request_id: taskId,
+        provider: modello === 'fal' || modello === 'fal-fast' ? 'fal' : 'wan',
+      })
       .select('id')
       .single();
-    if (insertError) console.error('video_generati insert error (webhook inserira la riga):', insertError);
-    const videoId = nuovoVideo?.id || null;
+    if (insertError) {
+      console.error('immagini_generate insert error:', insertError);
+      return res.status(500).json({ error: 'Errore creazione record immagine premium.' });
+    }
 
-    // 8. request_id: column absent on legacy live schema — keep in response only
-    const requestId = falData?.request_id || null;
-
-    // 9. Rispondi SUBITO (lancia e dimentica — anti-timeout)
     return res.status(200).json({
       status: 'In coda',
-      video_id: videoId,
-      request_id: requestId,
+      provider: modello,
+      image_id: nuovo?.id || null,
+      task_id: taskId,
       crediti_rimasti: utente.crediti - costoCrediti,
-      message: '✅ Richiesta presa in carico! Il video apparirà nella galleria tra 30-90 secondi (si aggiorna in tempo reale).',
+      message: 'Richiesta presa in carico! Immagine in generazione.',
     });
   } catch (e) {
     console.error('Errore backend premium:', e);

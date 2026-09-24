@@ -1,7 +1,5 @@
 // ============================================================
-// /api/claim-free-credits - One-time free credit pool (~3)
-// Grants crediti=3 to eligible new users (no videos, crediti===0).
-// Never exposes secrets. Idempotent no-op otherwise.
+// /api/claim-free-credits — Assegna crediti gratis ai nuovi utenti
 // ============================================================
 import { supabaseAdmin } from '../../lib/supabase-admin';
 
@@ -11,70 +9,57 @@ export default async function handler(req, res) {
   }
 
   const { userId } = req.body || {};
-  if (!userId || typeof userId !== 'string') {
-    return res.status(400).json({ error: 'Parametro userId mancante.' });
+  if (!userId) {
+    return res.status(400).json({ error: 'userId mancante' });
   }
 
   try {
-    const { data: profilo, error: profiloErr } = await supabaseAdmin
+    // Concedi crediti solo se l'utente non ha mai generato e ha 0 crediti
+    const { data: profilo } = await supabaseAdmin
       .from('profili')
-      .select('id, crediti')
+      .select('crediti')
       .eq('id', userId)
       .single();
 
-    if (profiloErr || !profilo) {
-      return res.status(404).json({ error: 'Profilo non trovato.', claimed: false, crediti: 0 });
+    if (!profilo) {
+      return res.status(404).json({ error: 'Profilo non trovato' });
     }
 
-    const creditiAttuali = typeof profilo.crediti === 'number' ? profilo.crediti : 0;
-
-    // Already has credits -> no-op success
-    if (creditiAttuali > 0) {
-      return res.status(200).json({
-        claimed: false,
-        reason: 'already_has_credits',
-        crediti: creditiAttuali,
-      });
+    if (profilo.crediti > 0) {
+      return res.status(200).json({ crediti: profilo.crediti, note: 'Già ha crediti' });
     }
 
-    // Any prior video row -> no-op (already used free pool / not a brand-new account)
-    const { count, error: countErr } = await supabaseAdmin
-      .from('video_generati')
+    // Verifica se ha già immagini
+    const { count } = await supabaseAdmin
+      .from('immagini_generate')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId);
 
-    if (countErr) {
-      console.error('claim-free-credits count error:', countErr);
-      return res.status(500).json({ error: 'Errore verifica generazioni.' });
+    if (count && count > 0) {
+      return res.status(200).json({ crediti: profilo.crediti, note: 'Già ha generato' });
     }
 
-    if ((count || 0) > 0) {
-      return res.status(200).json({
-        claimed: false,
-        reason: 'already_has_videos',
-        crediti: creditiAttuali,
-      });
-    }
-
-    const FREE_POOL = 3;
-    const { error: updateErr } = await supabaseAdmin
+    // Assegna 3 crediti gratis (race condition safe: update con eq crediti=0)
+    const FREE_CREDITS = 3;
+    const { data: updated, error } = await supabaseAdmin
       .from('profili')
-      .update({ crediti: FREE_POOL })
+      .update({ crediti: FREE_CREDITS })
       .eq('id', userId)
-      .eq('crediti', 0);
+      .eq('crediti', 0)
+      .select('crediti')
+      .single();
 
-    if (updateErr) {
-      console.error('claim-free-credits update error:', updateErr);
-      return res.status(500).json({ error: 'Errore assegnazione crediti gratis.' });
+    if (error) {
+      console.error('claim-free-credits error:', error);
+      return res.status(500).json({ error: 'Errore assegnazione crediti' });
     }
 
     return res.status(200).json({
-      claimed: true,
-      reason: 'granted',
-      crediti: FREE_POOL,
+      crediti: updated?.crediti || FREE_CREDITS,
+      note: 'Benvenuto! 3 crediti gratuiti per iniziare.',
     });
   } catch (e) {
     console.error('claim-free-credits error:', e);
-    return res.status(500).json({ error: 'Errore interno.' });
+    return res.status(500).json({ error: 'Errore interno' });
   }
 }

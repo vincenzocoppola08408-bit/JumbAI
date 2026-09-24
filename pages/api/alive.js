@@ -1,8 +1,14 @@
-// GET /api/alive — health check deploy / monitor esterni
+// ============================================================
+// /api/alive.js — Health Check per monitoraggio
+// ============================================================
 export default function handler(req, res) {
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    res.setHeader('Allow', 'GET, HEAD');
-    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return res.status(200).json({
+      ok: true,
+      name: 'JumbAI T2I',
+      version: '3.0',
+      timestamp: new Date().toISOString(),
+    });
   }
-  return res.status(200).json({ ok: true });
+  return res.status(405).json({ error: 'Metodo non consentito' });
 }

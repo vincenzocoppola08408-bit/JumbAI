@@ -1,50 +1,58 @@
 [
   {
     "id": "1",
-    "titolo": "Gatto sulla città",
-    "prompt": "Un gatto che vola sopra una città al tramonto, nuvole dorate, camera panoramica lenta, atmosfera cinematografica",
-    "gradient": "from-violet to-roseSoft"
+    "titolo": "Ritratto Elegante",
+    "prompt": "Ritratto femminile in stile cinematografico, luce morbida dorata, sfondo sfocato, profondità di campo, texture della pelle naturale",
+    "gradient": "from-violet to-roseSoft",
+    "categoria": "Ritratto"
   },
   {
     "id": "2",
-    "titolo": "Spiaggia tropicale",
-    "prompt": "Una spiaggia tropicale con onde che si infrangono, palme al vento, luce dorata, camera lenta cinematic",
-    "gradient": "from-cyan-500 to-blue-600"
+    "titolo": "Paesaggio Fantasy",
+    "prompt": "Castello su montagna fluttuante nel cielo, cascate luminose, arcobaleni, nuvole rosa, illustrazione fantasy epica",
+    "gradient": "from-fuchsia-500 to-purple-700",
+    "categoria": "Fantasy"
   },
   {
     "id": "3",
-    "titolo": "Neve alpina",
-    "prompt": "Cime innevate al mattino, fiocchi in primo piano, sole basso, camera drone lenta",
-    "gradient": "from-sky-400 to-indigo-600"
+    "titolo": "Anime Girl",
+    "prompt": "Ragazza anime con capelli blu e occhi viola, stile illustrazione giapponese, sfondo città illuminata al neon, dettagliato",
+    "gradient": "from-sky-400 to-indigo-600",
+    "categoria": "Anime"
   },
   {
     "id": "4",
-    "titolo": "Neon Tokyo",
-    "prompt": "Strada di Tokyo di notte piena di neon, pioggia, riflessi sull asfalto, tracking shot fluido",
-    "gradient": "from-fuchsia-500 to-purple-700"
+    "titolo": "Tramonto Alpino",
+    "prompt": "Cime innevate al tramonto, cielo arancione e viola, lago alpino che riflette le montagne, fotografia paesaggistica, HDR",
+    "gradient": "from-amber-500 to-orange-700",
+    "categoria": "Paesaggio"
   },
   {
     "id": "5",
-    "titolo": "Caffè italiano",
-    "prompt": "Barista che versa un caffè cremoso in slow motion, vapore, luci calde, stile commercial",
-    "gradient": "from-amber-500 to-orange-700"
+    "titolo": "Palazzo Moderno",
+    "prompt": "Grattacielo futuristico in vetro e acciaio, riflessi del cielo, architettura moderna minimalista, rendering architettonico 8K",
+    "gradient": "from-zinc-400 to-zinc-700",
+    "categoria": "Architettura"
   },
   {
     "id": "6",
-    "titolo": "Auto sportiva",
-    "prompt": "Supercar rossa su strada costiera al tramonto, motion blur, camera laterale epica",
-    "gradient": "from-red-500 to-rose-700"
+    "titolo": "Piatto Gourmet",
+    "prompt": "Piatto elegante con risotto ai funghi, guarnizione di prezzemolo, luce calda, profondità di campo, fotografia culinaria professionale",
+    "gradient": "from-emerald-500 to-teal-700",
+    "categoria": "Cibo"
   },
   {
     "id": "7",
-    "titolo": "Foresta magica",
-    "prompt": "Bosco con raggi di luce tra gli alberi, particelle fluttuanti, camera dolly avanti",
-    "gradient": "from-emerald-500 to-teal-700"
+    "titolo": "Moda Street",
+    "prompt": "Modella in giacca oversize su strada urbana, luci soffuse, atmosfera grintosa, fotografia di moda urbana, bianco e nero con accenti colore",
+    "gradient": "from-red-500 to-rose-700",
+    "categoria": "Moda"
   },
   {
     "id": "8",
-    "titolo": "Studio fashion",
-    "prompt": "Modella in abito nero su fondo scuro, luci soft, slow motion elegante",
-    "gradient": "from-zinc-400 to-zinc-700"
+    "titolo": "Arte Astratta",
+    "prompt": "Forme geometriche fluide colorate, gradienti viola e oro, texture digitali, arte generativa moderna, sfondo scuro",
+    "gradient": "from-cyan-500 to-blue-600",
+    "categoria": "Astratto"
   }
 ]

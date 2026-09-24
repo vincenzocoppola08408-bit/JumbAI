@@ -1,9 +1,8 @@
 // ============================================================
-// /api/wan-status — Poll DashScope task; update video_generati
-// POST { taskId, videoId, userId }
-// On SUCCEEDED: store media URL into url_video
-// On FAILED: set url_video='failed' (NO refund — provider already accepted)
-// TODO: DashScope URLs expire ~24h; upload to Supabase Storage when bucket exists.
+// /api/wan-status — Poll DashScope task; update immagini_generate
+// POST { taskId, imageId, userId }
+// On SUCCEEDED: store image URL into url_immagine
+// On FAILED: set stato='fallita' (NO refund — provider already accepted)
 // ============================================================
 import { supabaseAdmin } from '../../lib/supabase-admin';
 import { getWanTask } from '../../lib/wan';
@@ -13,7 +12,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Metodo non consentito' });
   }
 
-  const { taskId, videoId, userId } = req.body || {};
+  const { taskId, imageId, userId } = req.body || {};
   if (!taskId) {
     return res.status(400).json({ error: 'taskId mancante' });
   }
@@ -40,35 +39,37 @@ export default async function handler(req, res) {
 
     if (status === 'SUCCEEDED' && poll.mediaUrl) {
       const mediaUrl = poll.mediaUrl;
-      // TODO(permanent-storage): download mediaUrl and upload to Supabase Storage bucket
-      // (none wired in codebase yet). DashScope links expire ~24 hours.
 
-      if (videoId) {
+      if (imageId) {
         const { data: existing } = await supabaseAdmin
-          .from('video_generati')
-          .select('id, url_video')
-          .eq('id', videoId)
+          .from('immagini_generate')
+          .select('id, url_immagine, stato')
+          .eq('id', imageId)
           .single();
-        if (existing?.url_video && String(existing.url_video).startsWith('http')) {
+        if (existing?.stato === 'completata' && existing?.url_immagine) {
           return res.status(200).json({
             status: 'SUCCEEDED',
-            video_id: videoId,
-            url: existing.url_video,
+            image_id: imageId,
+            url: existing.url_immagine,
             duplicate: true,
             mediaKind: poll.mediaKind,
           });
         }
         const { error: upErr } = await supabaseAdmin
-          .from('video_generati')
-          .update({ url_video: mediaUrl })
-          .eq('id', videoId);
+          .from('immagini_generate')
+          .update({
+            url_immagine: mediaUrl,
+            stato: 'completata',
+            completato_il: new Date().toISOString(),
+          })
+          .eq('id', imageId);
         if (upErr) {
           console.error('wan-status update error:', upErr);
-          return res.status(500).json({ error: 'Errore aggiornamento video.', detail: upErr.message });
+          return res.status(500).json({ error: 'Errore aggiornamento immagine.', detail: upErr.message });
         }
         return res.status(200).json({
           status: 'SUCCEEDED',
-          video_id: videoId,
+          image_id: imageId,
           url: mediaUrl,
           mediaKind: poll.mediaKind,
           expiresNote: 'DashScope URL ~24h — TODO permanent Storage',
@@ -78,20 +79,24 @@ export default async function handler(req, res) {
       // Fallback: oldest pending for user
       if (userId) {
         const { data: pending } = await supabaseAdmin
-          .from('video_generati')
+          .from('immagini_generate')
           .select('id')
           .eq('user_id', userId)
-          .eq('url_video', 'pending')
+          .eq('stato', 'generazione')
           .order('creato_il', { ascending: true })
           .limit(1);
         if (pending && pending.length > 0) {
           await supabaseAdmin
-            .from('video_generati')
-            .update({ url_video: mediaUrl })
+            .from('immagini_generate')
+            .update({
+              url_immagine: mediaUrl,
+              stato: 'completata',
+              completato_il: new Date().toISOString(),
+            })
             .eq('id', pending[0].id);
           return res.status(200).json({
             status: 'SUCCEEDED',
-            video_id: pending[0].id,
+            image_id: pending[0].id,
             url: mediaUrl,
             mediaKind: poll.mediaKind,
           });
@@ -102,43 +107,43 @@ export default async function handler(req, res) {
         status: 'SUCCEEDED',
         url: mediaUrl,
         mediaKind: poll.mediaKind,
-        warning: 'Nessuna riga video_generati aggiornata',
+        warning: 'Nessuna riga immagini_generate aggiornata',
       });
     }
 
     if (status === 'FAILED' || status === 'CANCELED' || status === 'UNKNOWN') {
-      // Keep charge: provider accepted the task (anti-refund / no visible refunds).
-      if (videoId) {
-        const { data: existing } = await supabaseAdmin
-          .from('video_generati')
-          .select('id, url_video')
-          .eq('id', videoId)
-          .single();
-        if (existing && (!existing.url_video || existing.url_video === 'pending')) {
-          await supabaseAdmin
-            .from('video_generati')
-            .update({ url_video: 'failed' })
-            .eq('id', videoId);
-        }
+      if (imageId) {
+        await supabaseAdmin
+          .from('immagini_generate')
+          .update({
+            stato: 'fallita',
+            errore: String(poll.message || 'Task fallito').slice(0, 500),
+            completato_il: new Date().toISOString(),
+          })
+          .eq('id', imageId);
       } else if (userId) {
         const { data: pending } = await supabaseAdmin
-          .from('video_generati')
+          .from('immagini_generate')
           .select('id')
           .eq('user_id', userId)
-          .eq('url_video', 'pending')
+          .eq('stato', 'generazione')
           .order('creato_il', { ascending: true })
           .limit(1);
         if (pending && pending.length > 0) {
           await supabaseAdmin
-            .from('video_generati')
-            .update({ url_video: 'failed' })
+            .from('immagini_generate')
+            .update({
+              stato: 'fallita',
+              errore: String(poll.message || 'Task fallito').slice(0, 500),
+              completato_il: new Date().toISOString(),
+            })
             .eq('id', pending[0].id);
         }
       }
 
       return res.status(200).json({
         status,
-        video_id: videoId || null,
+        image_id: imageId || null,
         providerCode: poll.code,
         providerMessage: poll.message,
         refunded: false,
@@ -149,7 +154,7 @@ export default async function handler(req, res) {
     // PENDING / RUNNING
     return res.status(200).json({
       status: status || 'PENDING',
-      video_id: videoId || null,
+      image_id: imageId || null,
       task_id: taskId,
     });
   } catch (e) {

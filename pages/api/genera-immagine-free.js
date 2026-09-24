@@ -1,7 +1,7 @@
 // ============================================================
 // /api/genera-immagine-free — Genera Immagine Gratis (Wan T2I)
-// Cost: 1 credit. Same anti-refund rule as video free path.
-// Saves image URL into video_generati.url_video (legacy schema).
+// Cost: 1 credit. Anti-refund: debit only after provider accepts.
+// Save into immagini_generate table.
 // ============================================================
 import { supabaseAdmin } from '../../lib/supabase-admin';
 import { submitWanImage } from '../../lib/wan';
@@ -16,8 +16,9 @@ export default async function handler(req, res) {
     prompt,
     prompt_negativo = '',
     seed = null,
-    size = '1024*1024',
+    aspect_ratio = '1:1',
     ottimizza_prompt = true,
+    categoria = 'generale',
   } = req.body || {};
 
   if (!userId || !prompt) {
@@ -49,7 +50,7 @@ export default async function handler(req, res) {
     const wan = await submitWanImage({
       prompt,
       negativePrompt: prompt_negativo,
-      size,
+      aspectRatio: aspect_ratio,
       seed,
       promptExtend: Boolean(ottimizza_prompt),
     });
@@ -68,6 +69,7 @@ export default async function handler(req, res) {
       });
     }
 
+    // Provider accepted → debit + pending row
     const { error: updateError } = await supabaseAdmin
       .from('profili')
       .update({ crediti: utente.crediti - costoCrediti })
@@ -76,22 +78,57 @@ export default async function handler(req, res) {
     if (updateError) console.error('Errore addebito crediti post-Wan-T2I:', updateError);
 
     const { data: nuovo, error: insertError } = await supabaseAdmin
-      .from('video_generati')
-      .insert({ user_id: userId, prompt_usato: `[img] ${prompt}`, url_video: 'pending' })
+      .from('immagini_generate')
+      .insert({
+        user_id: userId,
+        prompt,
+        prompt_negativo,
+        seed: seed || null,
+        modello: wan.model,
+        categoria,
+        size: wan.size || '1024*1024',
+        stato: 'generazione',
+        request_id: wan.requestId,
+        provider: 'wan',
+      })
       .select('id')
       .single();
-    if (insertError) console.error('video_generati insert error (img):', insertError);
+    if (insertError) {
+      console.error('immagini_generate insert error:', insertError);
+      // Fallback: prova tabella video_generati legacy
+      const { data: legacy } = await supabaseAdmin
+        .from('video_generati')
+        .insert({ user_id: userId, prompt_usato: `[img] ${prompt}`, url_video: 'pending' })
+        .select('id')
+        .single()
+        .catch(() => ({ data: null }));
+      if (legacy) {
+        return res.status(200).json({
+          status: 'In coda',
+          provider: 'wan',
+          kind: 'image',
+          image_id: legacy.id,
+          task_id: wan.taskId,
+          request_id: wan.requestId,
+          model: wan.model,
+          legacy: true,
+          crediti_rimasti: utente.crediti - costoCrediti,
+          message: 'Immagine Wan in coda (legacy).',
+        });
+      }
+      return res.status(500).json({ error: 'Errore creazione record immagine.' });
+    }
 
     return res.status(200).json({
       status: 'In coda',
       provider: 'wan',
       kind: 'image',
-      video_id: nuovo?.id || null,
+      image_id: nuovo?.id || null,
       task_id: wan.taskId,
       request_id: wan.requestId,
       model: wan.model,
       crediti_rimasti: utente.crediti - costoCrediti,
-      message: 'Immagine Wan in coda. Apparira in Progetti (URL provider ~24h).',
+      message: 'Immagine Wan in coda. Apparira in Galleria.',
     });
   } catch (e) {
     console.error('Errore genera-immagine-free:', e);

@@ -1,75 +1,70 @@
 // ============================================================
-// /api/webhook-stripe — Riceve eventi Stripe (pagamento completato)
-// Aggiunge crediti all'utente
+// /api/webhook-stripe — Stripe Webhook per checkout completato
+// Aggiorna profili.crediti + piano dopo pagamento
 // ============================================================
 import { supabaseAdmin } from '../../lib/supabase-admin';
-import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-11-20.acacia',
-});
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-export const config = {
-  api: {
-    bodyParser: false, // Stripe richiede raw body per verify signature
-  },
-};
+export const config = { api: { bodyParser: false } };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Metodo non consentito' });
   }
 
+  const sig = req.headers['stripe-signature'];
   let event;
+
   try {
+    // Read raw body
     const chunks = [];
     for await (const chunk of req) {
       chunks.push(chunk);
     }
     const rawBody = Buffer.concat(chunks);
 
-    const sig = req.headers['stripe-signature'];
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (e) {
-    console.error('Stripe webhook signature error:', e);
-    return res.status(400).json({ error: `Webhook Error: ${e.message}` });
+  } catch (err) {
+    const msg = (err && err.message) || 'Unknown webhook error';
+    console.error('Stripe webhook signature verification failed:', msg);
+    return res.status(400).json({ error: 'Webhook Error: ' + msg });
   }
 
-  // Gestisci l'evento checkout.session.completed
+  // Handle the event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const userId = session.metadata?.userId;
-    const crediti = parseInt(session.metadata?.crediti || '0');
+    const crediti = parseInt(session.metadata?.crediti || '0', 10);
 
-    if (!userId || crediti <= 0) {
-      console.error('Webhook: metadata mancanti', session.metadata);
-      return res.status(200).json({ received: true, skipped: true });
+    if (userId && crediti > 0) {
+      try {
+        // Aggiorna crediti e piano
+        await supabaseAdmin.rpc('add_crediti', {
+          user_id: userId,
+          amount: crediti,
+        }).catch(async () => {
+          // Fallback: update diretto
+          const { data: profilo } = await supabaseAdmin
+            .from('profili')
+            .select('crediti')
+            .eq('id', userId)
+            .single();
+
+          const nuoviCrediti = (profilo?.crediti || 0) + crediti;
+          await supabaseAdmin
+            .from('profili')
+            .update({ crediti: nuoviCrediti, piano: 'premium' })
+            .eq('id', userId);
+        });
+
+        console.log(`Stripe: ${crediti} crediti aggiunti a ${userId}`);
+      } catch (err) {
+        console.error('Errore aggiornamento crediti da Stripe:', err);
+        return res.status(500).json({ error: 'Errore aggiornamento crediti' });
+      }
     }
-
-    // Aggiungi crediti all'utente
-    const { data: utente, error: selectError } = await supabaseAdmin
-      .from('profili')
-      .select('crediti')
-      .eq('id', userId)
-      .single();
-
-    if (selectError || !utente) {
-      console.error('Webhook: utente non trovato', userId);
-      return res.status(200).json({ received: true, error: 'Utente non trovato' });
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('profili')
-      .update({ crediti: utente.crediti + crediti, piano: 'premium' })
-      .eq('id', userId);
-
-    if (updateError) {
-      console.error('Webhook: errore aggiornamento crediti', updateError);
-      return res.status(200).json({ received: true, error: 'Errore aggiornamento' });
-    }
-
-    console.log(`✅ Crediti aggiornati per ${userId}: ${utente.crediti} → ${utente.crediti + crediti}`);
   }
 
-  return res.status(200).json({ received: true });
+  res.status(200).json({ received: true });
 }
