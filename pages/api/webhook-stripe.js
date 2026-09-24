@@ -39,24 +39,18 @@ export default async function handler(req, res) {
 
     if (userId && crediti > 0) {
       try {
-        // Aggiorna crediti e piano
-        await supabaseAdmin.rpc('add_crediti', {
-          user_id: userId,
-          amount: crediti,
-        }).catch(async () => {
-          // Fallback: update diretto
-          const { data: profilo } = await supabaseAdmin
-            .from('profili')
-            .select('crediti')
-            .eq('id', userId)
-            .single();
+        // Update diretto (nessuna RPC — potrebbe non esistere)
+        const { data: profilo } = await supabaseAdmin
+          .from('profili')
+          .select('crediti')
+          .eq('id', userId)
+          .single();
 
-          const nuoviCrediti = (profilo?.crediti || 0) + crediti;
-          await supabaseAdmin
-            .from('profili')
-            .update({ crediti: nuoviCrediti, piano: 'premium' })
-            .eq('id', userId);
-        });
+        const nuoviCrediti = (profilo?.crediti || 0) + crediti;
+        await supabaseAdmin
+          .from('profili')
+          .update({ crediti: nuoviCrediti, piano: 'premium' })
+          .eq('id', userId);
 
         console.log(`Stripe: ${crediti} crediti aggiunti a ${userId}`);
       } catch (err) {

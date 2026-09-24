@@ -238,6 +238,7 @@ export default function Home() {
   }
 
   function handleGoogleLogin() {
+    // Usa redirect full-page invece di popup per evitare blocchi
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -245,8 +246,9 @@ export default function Home() {
         queryParams: { access_type: 'offline', prompt: 'consent', scope: 'openid email profile' },
       },
     }).catch((err) => {
-      console.error(err);
-      alert('Login Google non disponibile. Verifica configurazione OAuth in Supabase Dashboard.');
+      console.error('Google OAuth error:', err);
+      // Fallback: alert chiaro con istruzioni
+      alert('Login Google non disponibile. Assicurati che Google OAuth sia configurato in Supabase Dashboard (Authentication → Providers → Google).');
     });
   }
 
@@ -368,7 +370,9 @@ export default function Home() {
   }
 
   async function pollTask(taskId: string, imageId: string | null, userId: string) {
-    for (let i = 0; i < 36; i++) {
+    const MAX_ATTEMPTS = 36;
+    const TIMEOUT_ATTEMPTS = 3; // After this many, check if image appeared via DB
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
       await new Promise((r) => setTimeout(r, 8000));
       try {
         const resp = await fetch('/api/wan-status', {
@@ -382,11 +386,32 @@ export default function Home() {
           await caricaProfilo(userId);
           if (data.status === 'SUCCEEDED') {
             setMessaggio('Immagine completata! Vedi in Galleria.');
+          } else {
+            setMessaggio('Generazione fallita.');
           }
           return;
         }
-        setMessaggio(`Generazione in corso ${i + 1}/${36}...`);
-      } catch { /* retry */ }
+        if (i > TIMEOUT_ATTEMPTS && i % 6 === 0) {
+          // Periodic re-sync from DB (webhook may have completed it)
+          await caricaImmagini();
+          const done = immagini.some(img => img.id === imageId && img.stato !== 'generazione');
+          if (done) {
+            setMessaggio('Immagine pronta!');
+            return;
+          }
+        }
+        setMessaggio(`Generazione in corso... (${i + 1}/${MAX_ATTEMPTS})`);
+      } catch { /* retry silently */ }
+    }
+    // Max timeout — mark as failed
+    setMessaggio('Timeout generazione. Potrebbe essere ancora in elaborazione.');
+    if (imageId) {
+      await fetch('/api/wan-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, imageId, userId, forceFail: true }),
+      }).catch(() => {});
+      await caricaImmagini();
     }
   }
 

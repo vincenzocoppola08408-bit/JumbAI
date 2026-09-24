@@ -45,22 +45,23 @@ export default async function handler(req, res) {
     }
 
     // Build Fal.ai payload
-    const aspectRatioMap = {
-      '1:1': '1:1',
-      '4:3': '4:3',
-      '3:4': '3:4',
-      '16:9': '16:9',
-      '9:16': '9:16',
-      '3:2': '3:2',
-      '2:3': '2:3',
+    // Fal SDXL usa image_size (string enum) non aspect_ratio
+    const falSizeMap = {
+      '1:1': 'square_hd',
+      '4:3': 'landscape_4_3',
+      '3:4': 'portrait_4_3',
+      '16:9': 'landscape_16_9',
+      '9:16': 'portrait_16_9',
+      '3:2': 'landscape_3_2',
+      '2:3': 'portrait_2_3',
     };
-    const finalAspectRatio = aspectRatioMap[aspect_ratio] || '1:1';
+    const falSize = falSizeMap[aspect_ratio] || 'square_hd';
 
     let providerAccepted = false;
     let providerData = null;
 
     if (modello === 'fal' || modello === 'fal-fast') {
-      // Fal.ai T2I endpoint
+      // Fal.ai SDXL T2I endpoint
       const baseUrl = process.env.SITE_BASE_URL || `https://${process.env.VERCEL_URL || 'jumbai.vercel.app'}`;
       const webhookUrl = `${baseUrl}/api/webhook-image-pronto?userId=${encodeURIComponent(userId)}&prompt=${encodeURIComponent(String(prompt).slice(0, 300))}`;
 
@@ -70,8 +71,10 @@ export default async function handler(req, res) {
           : prompt,
         ...(prompt_negativo && { negative_prompt: prompt_negativo }),
         ...(seed !== null && seed !== '' && { seed: Number(seed) }),
-        aspect_ratio: finalAspectRatio,
-        safety_checker: true,
+        image_size: falSize,
+        safety_checker: false,
+        num_images: 1,
+        expand_image: false,
         user_data: { userId, promptUsato: prompt },
       };
 
