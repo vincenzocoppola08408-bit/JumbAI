@@ -172,7 +172,16 @@ export default async function handler(req, res) {
         .eq('id', videoId);
 
       console.error('Fal.ai error:', falRes.status, falData);
-      return res.status(502).json({ error: 'Impossibile inviare la richiesta a Fal.ai.' });
+      const falDetail = falData
+        ? (falData.detail || falData.message || falData.error || falData)
+        : null;
+      return res.status(502).json({
+        error: 'Impossibile inviare la richiesta a Fal.ai.',
+        falStatus: falRes.status,
+        falEndpoint,
+        falKeyPresent: Boolean(process.env.FAL_AI_MASTER_KEY),
+        falDetail: typeof falDetail === 'string' ? falDetail.slice(0, 800) : JSON.stringify(falDetail || '').slice(0, 800),
+      });
     }
 
     // 8. request_id: column absent on legacy live schema — keep in response only
