@@ -760,6 +760,17 @@ export default function Home() {
             </button>
           )}
         </div>
+
+        {/* Video Studio */}
+        <div className="px-4 py-4 border-t border-white/[0.06]">
+          <button
+            type="button"
+            onClick={() => router.push('/video-studio')}
+            className="w-full rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white text-sm font-bold py-3 shadow-lg shadow-violet/20 hover:shadow-violet/40 transition"
+          >
+            Video Studio
+          </button>
+        </div>
       </aside>
     );
   }
@@ -1473,6 +1484,10 @@ export default function Home() {
             <button onClick={handleAuth} className="w-full rounded-xl bg-gradient-to-r from-violet to-roseSoft text-white font-bold py-3 shadow-lg shadow-violet/30 hover:shadow-violet/50 transition">
               {isRegistrazione ? 'Registrati' : 'Accedi'}
             </button>
+
+            <a href="/api/civitai-login" className="block w-full rounded-xl bg-violet/10 border border-violet/30 text-violetSoft font-bold py-3 text-center hover:bg-violet/20 transition mt-2">
+              Collega CivitAI (OAuth)
+            </a>
 
             <p className="text-center text-sm text-coolGray">
               {isRegistrazione ? 'Hai già un account?' : 'Non hai un account?'}{' '}

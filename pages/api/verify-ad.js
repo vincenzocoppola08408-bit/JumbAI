@@ -1,5 +1,5 @@
 // ============================================================
-// /api/verify-ad — Il server emette un token firmato dopo ad
+// /api/reward-credits — Il server emette un token firmato dopo ad
 // Il client chiama /api/reward-credits con token + userId
 // ============================================================
 import crypto from 'crypto';

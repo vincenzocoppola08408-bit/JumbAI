@@ -9,6 +9,9 @@ create table if not exists public.profili (
   crediti integer default 0 not null,
   piano text default 'free' not null check (piano in ('free','premium')),
   api_provider text default null,
+  civitai_access_token text default null,
+  civitai_refresh_token text default null,
+  civitai_buzz integer default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
