@@ -385,19 +385,61 @@ export default function Home() {
     }
   }
 
+
+  async function pollWanUntilDone(taskId: string, videoId: string | null, userId: string) {
+    const maxAttempts = 36; // ~6 min at 10s
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 10000));
+      try {
+        const resp = await fetch('/api/wan-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId, videoId, userId }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          console.warn('wan-status error', data);
+          continue;
+        }
+        const st = data.status;
+        if (st === 'SUCCEEDED') {
+          await caricaVideo();
+          await caricaProfilo(userId, { skipClaim: true });
+          setMessaggio('Generazione Wan completata — vedi Progetti.');
+          return true;
+        }
+        if (st === 'FAILED' || st === 'CANCELED' || st === 'UNKNOWN') {
+          await caricaVideo();
+          setMessaggio('Generazione Wan fallita (nessuno storno crediti).');
+          return false;
+        }
+        setMessaggio(`Wan in corso (${st || 'PENDING'})… tentativo ${i + 1}/${maxAttempts}`);
+        await caricaVideo();
+      } catch (e) {
+        console.warn('wan poll', e);
+      }
+    }
+    setMessaggio('Timeout polling Wan (~6 min). Controlla Progetti piu tardi.');
+    await caricaVideo();
+    return false;
+  }
+
+  function isImageMediaUrl(url: string | null | undefined): boolean {
+    if (!url) return false;
+    const u = String(url).toLowerCase().split('?')[0];
+    return /\.(png|jpe?g|webp|gif)$/.test(u) || u.includes('/image') || u.includes('.png');
+  }
+
   async function eseguiFree() {
     if (!session?.user?.id) return setShowLogin(true);
     if (!prompt.trim()) return alert('Scrivi un prompt.');
 
-    const FAL_MODELS = ['hunyuan-video', 'hunyuan-video-pro', 'minimax-video', 'cogvideo'];
     const costo = durata <= 6 ? 1 : 2;
-    const modelloFal = FAL_MODELS.includes(modello) ? modello : 'hunyuan-video';
 
     setInviando(true);
-    setMessaggio('Preparazione generazione gratuita...');
+    setMessaggio('Preparazione generazione gratuita (Wan / DashScope)...');
 
     try {
-      // Assegna pool gratis (~3) se eleggibile, poi rileggi profilo
       await claimFreeCredits(session.user.id);
       await caricaProfilo(session.user.id, { skipClaim: true });
 
@@ -413,7 +455,6 @@ export default function Home() {
           'Hai esaurito le generazioni gratuite incluse. Ricarica con un piano Premium (Starter o Pro) per continuare - senza chiavi Google.';
         setMessaggio(msg);
         alert(msg);
-        // Offri checkout Premium (non Google billing)
         try {
           const vuole = window.confirm('Vuoi aprire il checkout Premium Starter ora?');
           if (vuole) await avviaCheckout('starter');
@@ -421,39 +462,33 @@ export default function Home() {
         return;
       }
 
-      if (!FAL_MODELS.includes(modello)) {
-        setMessaggio('Genera Gratis usa i crediti JumbAI su Fal (Hunyuan). Modello avanzato BYOK: sezione Sviluppatori.');
-        setModello(modelloFal);
-      }
-
       trackGenera('free');
-      setMessaggio('Invio richiesta gratuita (crediti JumbAI)...');
+      setMessaggio('Invio richiesta gratuita Wan (crediti JumbAI)...');
 
       const body: any = {
         userId: session.user.id,
         prompt: prompt.trim(),
-        modello: modelloFal,
         durata_secondi: durata,
         risoluzione,
         aspect_ratio: aspectRatio,
-        genera_audio: generaAudio,
         ottimizza_prompt: ottimizzaPrompt,
         prompt_negativo: promptNegativo.trim(),
         tipo_input: tabInput,
       };
       if (seed) body.seed = parseInt(seed);
       if (tabInput !== 'testo' && fileImmagine) {
+        // Wan I2V needs a public URL; base64 alone falls back to T2V server-side
         body.immagine_base64 = await file2base64(fileImmagine);
       }
 
-      const resp = await fetch('/api/genera-premium', {
+      const resp = await fetch('/api/genera-free', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       const data = await resp.json();
       if (resp.ok) {
-        setMessaggio(' ' + (data.message || 'Richiesta gratuita presa in carico! Il video e in Progetti.'));
+        setMessaggio(' ' + (data.message || 'Richiesta Wan presa in carico!'));
         setPrompt('');
         setPromptNegativo('');
         setSeed('');
@@ -464,14 +499,77 @@ export default function Home() {
         await caricaVideo();
         setSezione('progetti');
         setFiltroGalleria('tutti');
-        // Soft refresh: realtime may lag; poll briefly
-        setTimeout(() => { void caricaVideo(); }, 2500);
-        setTimeout(() => { void caricaVideo(); }, 8000);
+        if (data.task_id) {
+          void pollWanUntilDone(data.task_id, data.video_id || null, session.user.id);
+        } else {
+          setTimeout(() => { void caricaVideo(); }, 2500);
+          setTimeout(() => { void caricaVideo(); }, 8000);
+        }
       } else {
-        alert(' ' + (data.error || 'Errore'));
+        const detail = data.providerMessage || data.providerCode || data.error || 'Errore';
+        alert(' ' + detail);
       }
     } catch (e: any) {
       alert(' Errore: ' + (e?.message || 'sconosciuto'));
+    } finally {
+      setInviando(false);
+      setTimeout(() => setMessaggio(''), 8000);
+    }
+  }
+
+  async function eseguiImmagineFree() {
+    if (!session?.user?.id) return setShowLogin(true);
+    if (!prompt.trim()) return alert('Scrivi un prompt per l\'immagine.');
+
+    setInviando(true);
+    setMessaggio('Preparazione immagine gratuita (Wan T2I)...');
+    try {
+      await claimFreeCredits(session.user.id);
+      await caricaProfilo(session.user.id, { skipClaim: true });
+
+      const { data: profiloFresh } = await supabase
+        .from('profili')
+        .select('crediti')
+        .eq('id', session.user.id)
+        .single();
+      const crediti = profiloFresh?.crediti ?? 0;
+      if (crediti < 1) {
+        const msg = 'Serve almeno 1 credito per Genera Immagine Gratis.';
+        setMessaggio(msg);
+        alert(msg);
+        return;
+      }
+
+      trackGenera('free');
+      const resp = await fetch('/api/genera-immagine-free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: session.user.id,
+          prompt: prompt.trim(),
+          prompt_negativo: promptNegativo.trim(),
+          seed: seed ? parseInt(seed) : null,
+          ottimizza_prompt: ottimizzaPrompt,
+        }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        setMessaggio(data.message || 'Immagine Wan in coda.');
+        setPrompt('');
+        setPromptNegativo('');
+        setSeed('');
+        await caricaProfilo(session.user.id, { skipClaim: true });
+        await caricaVideo();
+        setSezione('progetti');
+        setFiltroGalleria('tutti');
+        if (data.task_id) {
+          void pollWanUntilDone(data.task_id, data.video_id || null, session.user.id);
+        }
+      } else {
+        alert(data.providerMessage || data.error || 'Errore immagine');
+      }
+    } catch (e: any) {
+      alert('Errore: ' + (e?.message || 'sconosciuto'));
     } finally {
       setInviando(false);
       setTimeout(() => setMessaggio(''), 8000);
@@ -910,8 +1008,19 @@ export default function Home() {
               {inviando ? '...' : ''} Genera Premium <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-md">{costoCrediti} cr</span>
             </button>
           </div>
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={eseguiImmagineFree}
+              disabled={inviando}
+              className="w-full rounded-xl bg-surface2/80 border border-white/[0.08] text-textMain text-sm font-medium py-2.5 hover:bg-surface3 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {inviando ? '...' : ''} Genera Immagine Gratis
+              {session ? <span className="text-xs text-coolGray ml-2">1 cr</span> : null}
+            </button>
+          </div>
           <p className="mt-2 text-xs text-coolGray text-center">
-            Genera Gratis usa i crediti JumbAI (pool iniziale ~3). BYOK avanzato: sezione Sviluppatori.
+            Genera Gratis = Wan (DashScope Singapore, crediti JumbAI). Premium = Fal. BYOK: Sviluppatori.
           </p>
 
           {/* Messaggio */}
@@ -1095,12 +1204,20 @@ export default function Home() {
                     </div>
                   ) : video.stato === 'completato' && video.url_video ? (
                     <>
+                      {isImageMediaUrl(video.url_video) ? (
+                        <img
+                          src={video.url_video}
+                          alt={video.prompt || 'Immagine generata'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
                       <video
                         src={video.url_video}
                         className="w-full h-full object-cover"
                         controls
                         preload="metadata"
                       />
+                      )}
                       {/* ADD-7: watermark leggero solo Free (ospite / BYOK senza sessione Premium) */}
                       {!session && (
                         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -1256,7 +1373,7 @@ export default function Home() {
             >
               {inviando ? 'Generazione BYOK…' : 'Genera con BYOK Veo (opzionale)'}
             </button>
-            <p className="text-[11px] text-coolGray mt-2">Usa il prompt della sezione Casa. Genera Gratis resta su Fal + crediti JumbAI.</p>
+            <p className="text-[11px] text-coolGray mt-2">Usa il prompt della sezione Casa. Genera Gratis = Wan (DashScope) + crediti JumbAI.</p>
           </div>
 
           <div className="rounded-2xl bg-ink border border-white/[0.08] p-5">

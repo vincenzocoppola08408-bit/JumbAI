@@ -1,7 +1,7 @@
 // ============================================================
-// /api/genera-premium — Generazione Video Premium
-// Asincrono: scala crediti, invia a Fal.ai con webhook, risponde subito
-// Free path: Fal + crediti (NOT BYOK). Live DB uses legacy video_generati columns.
+// /api/genera-premium — Generazione Video Premium (Fal.ai)
+// Free path is /api/genera-free (Wan/DashScope). Keep Fal here for Premium.
+// Anti-refund: debit + row ONLY after Fal accepts. Legacy video_generati columns.
 // ============================================================
 import { supabaseAdmin } from '../../lib/supabase-admin';
 
