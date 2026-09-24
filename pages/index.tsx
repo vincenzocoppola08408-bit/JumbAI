@@ -9,7 +9,7 @@ import { trackGenera, trackCheckout } from '../lib/analytics';
 // JumbAI 2.0 — Full Dashboard: Sidebar + Console + Gallery + Auth
 // ================================================================
 
-type Sezione = 'casa' | 'progetti' | 'integrazioni' | 'sviluppatori';
+type Sezione = 'casa' | 'immagini' | 'integrazioni' | 'sviluppatori';
 type TabInput = 'testo' | 'immagine' | 'frame' | 'multiple';
 type FiltroGalleria = 'tutti' | 'rendering' | 'completato' | 'fallito';
 type StatoVideo = 'rendering' | 'completato' | 'fallito';
@@ -173,7 +173,7 @@ export default function Home() {
         });
       } catch { /* claim best-effort */ }
     }
-    const { data } = await supabase.from('profili').select('*').eq('id', userId).single();
+    const { data } = await supabase.from('profili').select('crediti, civitai_access_token, civitai_refresh_token, civitai_buzz').eq('id', userId).single();
     setProfilo(data);
   }
 
@@ -698,7 +698,7 @@ export default function Home() {
   function renderSidebar() {
     const voci: { id: Sezione; icona: string; label: string }[] = [
       { id: 'casa', icona: '', label: 'Casa' },
-      { id: 'progetti', icona: '', label: 'Progetti' },
+      { id: 'immagini', icona: '', label: 'Immagini Salvate' },
       { id: 'integrazioni', icona: '', label: 'Integrazioni' },
       { id: 'sviluppatori', icona: '', label: 'Sviluppatori' },
     ];
