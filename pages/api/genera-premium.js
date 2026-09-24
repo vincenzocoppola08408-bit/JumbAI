@@ -50,46 +50,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2. Scala crediti (optimistic lock)
-    const { error: updateError } = await supabaseAdmin
-      .from('profili')
-      .update({ crediti: utente.crediti - costoCrediti })
-      .eq('id', userId)
-      .eq('crediti', utente.crediti);
-
-    if (updateError) {
-      return res.status(500).json({ error: 'Errore aggiornamento crediti.' });
-    }
-
-    // 3. Crea record nel DB (LIVE schema: id, user_id, url_video, prompt_usato, creato_il)
-    // schema-v2 columns (prompt/stato/titolo/...) are NOT on production yet.
-    // url_video is NOT NULL on legacy schema -> placeholder until webhook fills the real URL.
-    const { data: nuovoVideo, error: insertError } = await supabaseAdmin
-      .from('video_generati')
-      .insert({
-        user_id: userId,
-        prompt_usato: prompt,
-        url_video: 'pending',
-      })
-      .select('id')
-      .single();
-
-    if (insertError || !nuovoVideo) {
-      // Rollback crediti
-      await supabaseAdmin
-        .from('profili')
-        .update({ crediti: utente.crediti })
-        .eq('id', userId);
-      console.error('video_generati insert error:', insertError);
-      return res.status(500).json({
-        error: 'Errore creazione record video.',
-        insertError: insertError
-          ? { message: insertError.message, code: insertError.code, details: insertError.details, hint: insertError.hint }
-          : { message: 'insert returned no row' },
-      });
-    }
-
-    const videoId = nuovoVideo.id;
+    // NOTE: niente addebito/record prima che Fal accetti -> nessuno storno visibile.
 
     // 4. Costruisci il payload per Fal.ai
     // Mappa risoluzione a aspect_ratio
@@ -121,7 +82,6 @@ export default async function handler(req, res) {
       // user_data per il webhook
       user_data: {
         userId: userId,
-        videoId: videoId,
         promptUsato: prompt,
       },
     };
@@ -129,7 +89,7 @@ export default async function handler(req, res) {
     // 5. Webhook URL (DOVE Fal.ai ci risponde)
     const baseUrl = process.env.SITE_BASE_URL || `https://${process.env.VERCEL_URL || 'jumbai.vercel.app'}`;
     // Pass ids in query: Fal often does not echo custom user_data to the webhook
-    const webhookUrl = `${baseUrl}/api/webhook-video-pronto?videoId=${encodeURIComponent(videoId)}&userId=${encodeURIComponent(userId)}`;
+    const webhookUrl = `${baseUrl}/api/webhook-video-pronto?userId=${encodeURIComponent(userId)}&prompt=${encodeURIComponent(String(prompt).slice(0, 300))}`;
 
     // 6. Determina endpoint Fal.ai in base al modello
     let falEndpoint = 'https://queue.fal.run/fal-ai/hunyuan-video';
@@ -160,17 +120,7 @@ export default async function handler(req, res) {
     } catch {}
 
     if (!falRes.ok) {
-      // Rollback: ripristina crediti e rimuovi record pending (legacy schema has no stato/errore)
-      await supabaseAdmin
-        .from('profili')
-        .update({ crediti: utente.crediti })
-        .eq('id', userId);
-
-      await supabaseAdmin
-        .from('video_generati')
-        .delete()
-        .eq('id', videoId);
-
+      // Nessun credito scalato e nessun record creato: niente da stornare.
       console.error('Fal.ai error:', falRes.status, falData);
       const falDetail = falData
         ? (falData.detail || falData.message || falData.error || falData)
@@ -181,8 +131,25 @@ export default async function handler(req, res) {
         falEndpoint,
         falKeyPresent: Boolean(process.env.FAL_AI_MASTER_KEY),
         falDetail: typeof falDetail === 'string' ? falDetail.slice(0, 800) : JSON.stringify(falDetail || '').slice(0, 800),
+        crediti_rimasti: utente.crediti,
       });
     }
+
+    // Fal ha accettato: ora consumo reale -> scala crediti e crea record "pending"
+    const { error: updateError } = await supabaseAdmin
+      .from('profili')
+      .update({ crediti: utente.crediti - costoCrediti })
+      .eq('id', userId)
+      .eq('crediti', utente.crediti);
+    if (updateError) console.error('Errore addebito crediti post-Fal:', updateError);
+
+    const { data: nuovoVideo, error: insertError } = await supabaseAdmin
+      .from('video_generati')
+      .insert({ user_id: userId, prompt_usato: prompt, url_video: 'pending' })
+      .select('id')
+      .single();
+    if (insertError) console.error('video_generati insert error (webhook inserira la riga):', insertError);
+    const videoId = nuovoVideo?.id || null;
 
     // 8. request_id: column absent on legacy live schema — keep in response only
     const requestId = falData?.request_id || null;

@@ -66,14 +66,31 @@ export default async function handler(req, res) {
       });
     }
 
-    // Legacy fallback: insert completed row when videoId missing
+    // No videoId: aggiorna la riga pending piu vecchia dell'utente, altrimenti inserisci
+    if (userId && videoUrl) {
+      const { data: pending } = await supabaseAdmin
+        .from('video_generati')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('url_video', 'pending')
+        .order('creato_il', { ascending: true })
+        .limit(1);
+      if (pending && pending.length > 0) {
+        const { error: upErr } = await supabaseAdmin
+          .from('video_generati')
+          .update({ url_video: videoUrl })
+          .eq('id', pending[0].id);
+        if (!upErr) return res.status(200).json({ status: 'success', video_id: pending[0].id, request_id: requestId });
+        console.error('Update pending error:', upErr);
+      }
+    }
     if (userId && videoUrl) {
       const { error: insertError } = await supabaseAdmin
         .from('video_generati')
         .insert({
           user_id: userId,
           url_video: videoUrl,
-          prompt_usato: userData.promptUsato || '',
+          prompt_usato: userData.promptUsato || (typeof q.prompt === 'string' ? q.prompt : ''),
         });
 
       if (insertError) {
