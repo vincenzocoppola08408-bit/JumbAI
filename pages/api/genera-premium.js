@@ -1,6 +1,7 @@
 // ============================================================
 // /api/genera-premium — Generazione Video Premium
 // Asincrono: scala crediti, invia a Fal.ai con webhook, risponde subito
+// Free path: Fal + crediti (NOT BYOK). Live DB uses legacy video_generati columns.
 // ============================================================
 import { supabaseAdmin } from '../../lib/supabase-admin';
 
@@ -45,7 +46,7 @@ export default async function handler(req, res) {
     const costoCrediti = durata_secondi <= 6 ? 1 : 2;
     if (utente.crediti < costoCrediti) {
       return res.status(403).json({
-        error: `Crediti insufficienti. Servono \ crediti, ne hai ${utente.crediti}.`,
+        error: `Crediti insufficienti. Servono ${costoCrediti} crediti, ne hai ${utente.crediti}.`,
       });
     }
 
@@ -60,22 +61,15 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Errore aggiornamento crediti.' });
     }
 
-    // 3. Crea record "rendering" nel DB (id è generato da Supabase)
+    // 3. Crea record nel DB (LIVE schema: id, user_id, url_video, prompt_usato, creato_il)
+    // schema-v2 columns (prompt/stato/titolo/...) are NOT on production yet.
+    // url_video is NOT NULL on legacy schema -> placeholder until webhook fills the real URL.
     const { data: nuovoVideo, error: insertError } = await supabaseAdmin
       .from('video_generati')
       .insert({
         user_id: userId,
-        prompt: prompt,
-        prompt_negativo: prompt_negativo,
-        seed: seed || null,
-        modello: modello,
-        tipo_input: tipo_input,
-        durata_secondi: durata_secondi,
-        risoluzione: risoluzione,
-        genera_audio: genera_audio,
-        ottimizza_prompt: ottimizza_prompt,
-        titolo: prompt.substring(0, 60),
-        stato: 'rendering',
+        prompt_usato: prompt,
+        url_video: 'pending',
       })
       .select('id')
       .single();
@@ -86,7 +80,13 @@ export default async function handler(req, res) {
         .from('profili')
         .update({ crediti: utente.crediti })
         .eq('id', userId);
-      return res.status(500).json({ error: 'Errore creazione record video.' });
+      console.error('video_generati insert error:', insertError);
+      return res.status(500).json({
+        error: 'Errore creazione record video.',
+        insertError: insertError
+          ? { message: insertError.message, code: insertError.code, details: insertError.details, hint: insertError.hint }
+          : { message: 'insert returned no row' },
+      });
     }
 
     const videoId = nuovoVideo.id;
@@ -160,7 +160,7 @@ export default async function handler(req, res) {
     } catch {}
 
     if (!falRes.ok) {
-      // Rollback: ripristina credito e segna come fallito
+      // Rollback: ripristina crediti e rimuovi record pending (legacy schema has no stato/errore)
       await supabaseAdmin
         .from('profili')
         .update({ crediti: utente.crediti })
@@ -168,21 +168,15 @@ export default async function handler(req, res) {
 
       await supabaseAdmin
         .from('video_generati')
-        .update({ stato: 'fallito', errore: `Fal.ai error: ${falRes.status}` })
+        .delete()
         .eq('id', videoId);
 
       console.error('Fal.ai error:', falRes.status, falData);
       return res.status(502).json({ error: 'Impossibile inviare la richiesta a Fal.ai.' });
     }
 
-    // 8. Salva request_id per tracciamento
+    // 8. request_id: column absent on legacy live schema — keep in response only
     const requestId = falData?.request_id || null;
-    if (requestId) {
-      await supabaseAdmin
-        .from('video_generati')
-        .update({ request_id: requestId })
-        .eq('id', videoId);
-    }
 
     // 9. Rispondi SUBITO (lancia e dimentica — anti-timeout)
     return res.status(200).json({

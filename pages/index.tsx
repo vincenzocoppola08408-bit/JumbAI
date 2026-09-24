@@ -36,6 +36,25 @@ interface Video {
   completato_il: string | null;
 }
 
+// Legacy DB video_generati (id, user_id, url_video, prompt_usato, creato_il): derive UI fields
+function normalizzaVideo(r: any): Video {
+  const url: string | null = r?.url_video ?? null;
+  let stato: StatoVideo = r?.stato;
+  if (!stato) {
+    if (url && String(url).startsWith('http')) stato = 'completato';
+    else if (url === 'failed' || url === 'fallito') stato = 'fallito';
+    else stato = 'rendering';
+  }
+  const prompt = r?.prompt ?? r?.prompt_usato ?? '';
+  return {
+    ...r,
+    prompt,
+    titolo: r?.titolo ?? String(prompt).substring(0, 60),
+    stato,
+    url_video: url && String(url).startsWith('http') ? url : (stato === 'completato' ? url : null),
+  } as Video;
+}
+
 export default function Home() {
   // ---- Auth ----
   const router = useRouter();
@@ -175,16 +194,17 @@ export default function Home() {
           filter: `user_id=eq.${session.user.id}`,
         },
         (payload) => {
-          const nuovo = payload.new as any;
-          if (!nuovo) return;
+          const raw = payload.new as any;
+          if (!raw || !raw.id) return;
+          const nuovo = normalizzaVideo(raw);
           setVideos((prev) => {
             const idx = prev.findIndex((v) => v.id === nuovo.id);
             if (idx >= 0) {
               const copy = [...prev];
-              copy[idx] = { ...copy[idx], ...nuovo };
+              copy[idx] = normalizzaVideo({ ...copy[idx], ...raw });
               return copy;
             }
-            return [nuovo as Video, ...prev];
+            return [nuovo, ...prev];
           });
         }
       )
@@ -200,7 +220,7 @@ export default function Home() {
       .select('*')
       .eq('user_id', session.user.id)
       .order('creato_il', { ascending: false });
-    if (data) setVideos(data as Video[]);
+    if (data) setVideos((data as any[]).map(normalizzaVideo));
   }
 
   // ============ LOGIN / REGISTRAZIONE ============
@@ -342,18 +362,8 @@ export default function Home() {
         .from('video_generati')
         .insert({
           user_id: session.user.id,
-          prompt: prompt.trim(),
-          prompt_negativo: promptNegativo.trim() || '',
-          modello: veoModel,
-          tipo_input: tabInput,
-          durata_secondi: durata,
-          risoluzione,
-          genera_audio: generaAudio,
-          ottimizza_prompt: ottimizzaPrompt,
-          titolo: prompt.trim().substring(0, 60),
-          stato: 'completato',
+          prompt_usato: prompt.trim(),
           url_video: videoUri,
-          completato_il: new Date().toISOString(),
         })
         .select('id')
         .single();
