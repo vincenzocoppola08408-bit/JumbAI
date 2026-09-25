@@ -11,12 +11,12 @@
   "redirects": [
     {
       "source": "/dashboard",
-      "destination": "/",
-      "permanent": false
+      "destination": "/app",
+      "permanent": true
     },
     {
       "source": "/pricing",
-      "destination": "/landing#pricing",
+      "destination": "/#pricing",
       "permanent": false
     },
     {
@@ -30,9 +30,9 @@
       "permanent": false
     },
     {
-      "source": "/app",
-      "destination": "/",
-      "permanent": false
+      "source": "/generator",
+      "destination": "/app",
+      "permanent": true
     }
   ]
 }
