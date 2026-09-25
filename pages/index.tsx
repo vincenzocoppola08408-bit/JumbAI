@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase-client';
 import { trackGenera, trackCheckout } from '../lib/analytics';
+import Toast from '../components/Toast';
 
 // ================================================================
 // JumbAI 3.0 — Text-to-Image Generator: Sidebar + Console + Gallery + Auth
@@ -97,6 +98,20 @@ export default function Home() {
   const [immagini, setImmagini] = useState<Immagine[]>([]);
   const [inviando, setInviando] = useState(false);
   const [messaggio, setMessaggio] = useState('');
+  // Toast notifications per UI/UX errori
+  const [toasts, setToasts] = useState<Array<{ id: string; type: string; message: string }>>([]);
+
+  function addToast(message: string, type: string = 'info', duration: number = 4000) {
+    const id = Math.random().toString(36).slice(2, 9);
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, duration + 300);
+  }
+
+  function removeToast(id: string) {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }
   const [showLogin, setShowLogin] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [email, setEmail] = useState('');
@@ -255,7 +270,10 @@ export default function Home() {
   // ============ GENERAZIONE ============
   async function eseguiFree() {
     if (!session?.user?.id) return setShowLogin(true);
-    if (!prompt.trim()) return alert('Scrivi un prompt per generare un\'immagine.');
+    if (!prompt.trim()) {
+      addToast('Scrivi un prompt per generare un\'immagine.', 'warning', 4000);
+      return;
+    }
 
     setInviando(true);
     setMessaggio('Generazione immagine gratuita in corso...');
@@ -269,7 +287,7 @@ export default function Home() {
         .single();
       if ((profiloFresh?.crediti ?? 0) < 1) {
         setMessaggio('Crediti insufficienti. Acquista un piano Premium.');
-        alert('Crediti insufficienti!');
+        addToast('Crediti insufficienti. Acquista un piano Premium.', 'warning', 6000);
         return;
       }
 
@@ -290,6 +308,7 @@ export default function Home() {
       const data = await resp.json();
       if (resp.ok) {
         setMessaggio(data.message || 'Immagine in generazione!');
+        addToast('Immagine in generazione!', 'success', 5000);
         setPrompt('');
         setPromptNegativo('');
         setSeed('');
@@ -302,9 +321,11 @@ export default function Home() {
           pollTask(data.task_id, data.image_id, session.user.id);
         }
       } else {
+        addToast('Errore generazione: ' + (data.error || data.providerMessage || 'Errore non specificato'), 'error', 7000);
         alert(data.error || data.providerMessage || 'Errore generazione');
       }
     } catch (e: any) {
+      addToast('Errore durante la generazione: ' + (e?.message || 'sconosciuto'), 'error', 7000);
       alert('Errore: ' + (e?.message || 'sconosciuto'));
     } finally {
       setInviando(false);
@@ -1125,6 +1146,20 @@ export default function Home() {
         </footer>
       </div>
       {renderLoginModal()}
+      {/* Toast notifications */}
+      <div className="fixed top-0 right-0 z-[200] p-4 space-y-2 pointer-events-none">
+        {toasts.map((t, idx) => (
+          <div key={t.id} className="pointer-events-auto">
+            <Toast
+              message={t.message}
+              type={t.type}
+              duration={4000}
+              onClose={() => removeToast(t.id)}
+              offset={idx * 60}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-# Buongiorno 26 Settembre 2026 — Piano d'Azione JumbAI T2I
+# Buongiorno 25 Settembre 2026 — Piano d'Azione JumbAI T2I
 
 ## Stato Attuale
 
